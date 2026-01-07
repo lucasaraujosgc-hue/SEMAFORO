@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import {
   BarChart,
@@ -29,7 +28,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
 
   const { processedData, dataKeys, isComplex, complexConfig } = useMemo(() => {
     try {
-      // CASO 0: Formato Complexo (ExternalChartData com labels e series separados)
+      // CASO 0: Formato Complexo
       if (config.data && !Array.isArray(config.data) && typeof config.data === 'object') {
         const extData = config.data as any; 
         
@@ -149,16 +148,19 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       );
     }
 
-    // Aumentamos a margin top para 20 ou 30 para evitar cortes
-    const commonMargin = { top: 20, right: 20, bottom: 5, left: 0 };
+    // Aumentamos a margem superior para 35px para evitar cortes
+    const commonMargin = { top: 35, right: 20, bottom: 5, left: 0 };
+    
+    // Função para calcular domínio com folga de 10% no topo
+    const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.1)];
 
     if (isComplex && complexConfig && complexConfig.series) {
       return (
         <ComposedChart data={processedData} margin={commonMargin}>
           <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" scale="point" padding={{ left: 10, right: 10 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
-          <YAxis yAxisId="left" orientation="left" stroke="#94a3b8" fontSize={11} tickLine={false} label={complexConfig.yAxes?.left?.title ? { value: complexConfig.yAxes.left.title, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 } : undefined} />
-          <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} tickLine={false} hide={!complexConfig.yAxes?.right} label={complexConfig.yAxes?.right?.title ? { value: complexConfig.yAxes.right.title, angle: 90, position: 'insideRight', fill: '#94a3b8', fontSize: 10 } : undefined} />
+          <YAxis yAxisId="left" orientation="left" stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} label={complexConfig.yAxes?.left?.title ? { value: complexConfig.yAxes.left.title, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 } : undefined} />
+          <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} tickLine={false} hide={!complexConfig.yAxes?.right} domain={domainWithPadding} label={complexConfig.yAxes?.right?.title ? { value: complexConfig.yAxes.right.title, angle: 90, position: 'insideRight', fill: '#94a3b8', fontSize: 10 } : undefined} />
           <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
           <Legend wrapperStyle={{ paddingTop: '10px' }} />
           {complexConfig.series.map((serie, index) => {
@@ -182,7 +184,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
           <LineChart data={processedData} margin={commonMargin}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} />
+            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} />
             <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
@@ -227,7 +229,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
           <BarChart data={processedData} margin={commonMargin}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} />
+            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} />
             <Tooltip cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
