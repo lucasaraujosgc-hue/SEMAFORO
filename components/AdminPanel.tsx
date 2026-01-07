@@ -104,10 +104,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleSubmit = async () => {
+    // Monta o config do gráfico com as cores individuais
     const config: ChartConfig = { 
         type: chartType, 
         title, 
-        data: builderRows
+        data: builderRows // rows já contém {label, Valor, color}
     };
     
     const finalReport = {
@@ -121,7 +122,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         recorrencia, 
         dataAtualizacao: Date.now(), 
         semaforoRules, 
-        semaforoGeral,
+        semaforoGeral, // Salva o status geral
         progress, 
         progressHistory, 
         report: finalReport 
@@ -166,45 +167,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const handleMovePost = async (index: number, direction: 'up' | 'down') => {
+    // A lista 'posts' recebida já está ordenada. 
+    // Vamos clonar para manipular
+    const newPosts = [...posts];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= posts.length) return;
 
-    const itemA = posts[index];
-    const itemB = posts[targetIndex];
+    if (targetIndex < 0 || targetIndex >= newPosts.length) return;
 
-    // Lógica para Troca de Ordem
-    let orderA = itemA.order ?? index;
-    let orderB = itemB.order ?? targetIndex;
+    // Troca
+    const itemA = newPosts[index];
+    const itemB = newPosts[targetIndex];
 
-    // Se por acaso as ordens forem iguais (ex: ambas 0 ou undefined que virou index mas teve conflito), 
-    // forçamos a diferenciação baseada nos índices visuais
-    if (orderA === orderB) {
-        orderA = index;
-        orderB = targetIndex;
-    }
+    // Se eles não têm ordem definida, assumimos o index atual
+    const orderA = itemA.order ?? index;
+    const orderB = itemB.order ?? targetIndex;
 
-    // Trocamos os valores
-    const newOrderA = orderB;
-    const newOrderB = orderA;
+    // Trocamos os valores de order
+    // Para garantir consistência, vamos atribuir a 'order' de B para A e vice-versa, 
+    // ou simplesmente trocar suas posições no array e re-indexar tudo se quiséssemos ser muito estritos.
+    // Mas trocar os valores é mais eficiente.
+    
+    // ATENÇÃO: Se as ordens forem iguais (ex: 0 e 0), a troca não fará efeito na ordenação.
+    // Por isso, é mais seguro atribuir indices sequenciais baseados na posição desejada.
+    // Vamos atribuir targetIndex para A e index para B
+    
+    // Melhor abordagem: Atribuir ordem baseada no array visual
+    newPosts[index] = itemB;
+    newPosts[targetIndex] = itemA;
 
-    // Atualização Sequencial para garantir integridade do State do React e DB
-    // Primeiro atualiza um...
-    await onEditPost(itemA.id, itemA.topicId, itemA.description, itemA.chartConfig, { 
-        ...itemA, 
-        report: itemA.report, 
-        progress: itemA.progress, 
-        progressHistory: itemA.progressHistory, 
-        order: newOrderA 
-    });
+    // Agora iteramos e salvamos a ordem para os dois itens trocados (ou para todos, mas vamos focar nos 2)
+    // Para evitar conflitos, é melhor re-salvar a ordem baseada no índice do array
+    
+    const updatePromises = [];
+    
+    // Atualiza itemA (agora na posição targetIndex)
+    const newOrderA = targetIndex;
+    updatePromises.push(onEditPost(itemA.id, itemA.topicId, itemA.description, itemA.chartConfig, {
+        ...itemA, // preserva extraData existente
+        report: itemA.report,
+        progress: itemA.progress,
+        progressHistory: itemA.progressHistory,
+        order: newOrderA // Nova ordem
+    }));
 
-    // ...Depois atualiza o outro. Isso força o re-render e re-sort correto no componente pai.
-    await onEditPost(itemB.id, itemB.topicId, itemB.description, itemB.chartConfig, { 
-        ...itemB, 
-        report: itemB.report, 
-        progress: itemB.progress, 
-        progressHistory: itemB.progressHistory, 
-        order: newOrderB 
-    });
+    // Atualiza itemB (agora na posição index)
+    const newOrderB = index;
+    updatePromises.push(onEditPost(itemB.id, itemB.topicId, itemB.description, itemB.chartConfig, {
+        ...itemB,
+        report: itemB.report,
+        progress: itemB.progress,
+        progressHistory: itemB.progressHistory,
+        order: newOrderB // Nova ordem
+    }));
+
+    await Promise.all(updatePromises);
   };
 
   if (!isAuthenticated) {
@@ -248,7 +264,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 { id: 2, label: '2. Semáforo', icon: AlertOctagon },
                 { id: 3, label: '3. Dados & Gráfico', icon: TrendingUp },
                 { id: 4, label: '4. Resumo Exec.', icon: FileText },
-                { id: 5, label: '5. Informações', icon: ListChecks }, 
+                { id: 5, label: '5. Informações', icon: ListChecks }, // Nome alterado
                 { id: 6, label: '6. Metas Priorit.', icon: Target },
                 { id: 7, label: '7. Prob. & Decisões', icon: AlertTriangle },
                 { id: 8, label: '8. Riscos', icon: ShieldAlert },
@@ -268,8 +284,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar">
             {activeTab === 'add' ? (
               <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
-                {/* Steps omitidos para brevidade - mantidos iguais ao original, exceto Step 8 */}
                 
+                {/* Steps 1-7 (Mantidos conforme código anterior, mas omitidos para brevidade onde não houve mudança lógica, apenas renderização) */}
+                
+                {/* Passo 1 - Mantido */}
                 {formStep === 1 && (
                   <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">1. Definição Estratégica</h3>
@@ -338,6 +356,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                 )}
+                
+                {/* Steps 2, 3, 4, 5, 6, 7 Renderizados como anteriormente (omitidos para focar na mudança do 8 e lista) */}
+                {/* ... (Conteúdo repetido dos steps 2 a 7) ... */}
                 {formStep === 2 && (
                     <div className="space-y-8">
                         <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">2. Regras de Calibração</h3>
@@ -566,6 +587,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 )}
                 
+                {/* Passo 8 Modificado com Input para "Outros" */}
                 {formStep === 8 && (
                    <div className="space-y-10">
                       <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">8. Riscos</h3>
@@ -575,13 +597,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                {['Fiscal', 'Jurídico', 'Operacional', 'Político', 'Reputacional'].map(t => (
                                  <button key={t} onClick={() => { const n = report.riscos.tipos.includes(t) ? report.riscos.tipos.filter(x => x !== t) : [...report.riscos.tipos, t]; setReport({...report, riscos: {...report.riscos, tipos: n}}); }} className={`px-5 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${report.riscos.tipos.includes(t) ? 'bg-red-600 border-red-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-600'}`}>{t}</button>
                                ))}
-                               
+                               {/* Exibir itens personalizados adicionados */}
                                {report.riscos.tipos.filter(t => !['Fiscal', 'Jurídico', 'Operacional', 'Político', 'Reputacional'].includes(t)).map(t => (
                                    <button key={t} onClick={() => { const n = report.riscos.tipos.filter(x => x !== t); setReport({...report, riscos: {...report.riscos, tipos: n}}); }} className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase border bg-red-600 border-red-500 text-white flex items-center gap-2">
                                        {t} <X size={12}/>
                                    </button>
                                ))}
 
+                               {/* Botão/Input para adicionar novo */}
                                {!isAddingCustomRisk ? (
                                    <button onClick={() => setIsAddingCustomRisk(true)} className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase border border-slate-700 bg-slate-900 text-slate-400 hover:bg-slate-800 transition-all flex items-center gap-2">
                                        Outros +
@@ -634,7 +657,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
               </div>
             ) : (
-              // Modo Lista (Catálogo)
+              // Modo Lista (Catálogo) - Atualizado com Reordenação
               <div className="space-y-6">
                 <div className="flex justify-between items-end mb-6 px-4">
                   <h3 className="text-2xl font-black text-white">Catálogo</h3>
@@ -646,6 +669,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="flex items-center gap-6">
                         <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center border border-slate-800 group-hover:scale-105 transition-all relative">
                           <span className="text-[10px] font-black text-slate-600">{post.topicId.substring(0,3).toUpperCase()}</span>
+                          {/* Dot do Semáforo na Lista */}
                           <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${post.semaforoGeral === 'yellow' ? 'bg-amber-500' : post.semaforoGeral === 'red' ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
                         </div>
                         <div>
@@ -654,6 +678,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
+                        {/* Botões de Reordenação */}
                         <div className="flex flex-col gap-1 mr-4 border-r border-slate-800 pr-4">
                             <button 
                                 onClick={() => handleMovePost(index, 'up')} 
