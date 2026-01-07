@@ -135,6 +135,7 @@ export interface Post {
   description: string;
   chartConfig: ChartConfig;
   createdAt: number;
+  order?: number; // Campo para ordenação personalizada
   
   responsavel: string;
   fonteOficial: string;

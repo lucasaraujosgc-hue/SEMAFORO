@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart } from 'lucide-react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, ArrowUp, ArrowDown } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
 
@@ -60,6 +60,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [progressHistory, setProgressHistory] = useState<ProgressUpdate[]>([]);
   // Builder rows agora suporta cor
   const [builderRows, setBuilderRows] = useState<any[]>([{ label: 'Mês 1', Valor: 0, color: '#10b981' }]);
+
+  // Risco Personalizado
+  const [customRiskInput, setCustomRiskInput] = useState('');
+  const [isAddingCustomRisk, setIsAddingCustomRisk] = useState(false);
 
   // State para Nova Movimentação (Step 9)
   const [newMoveDate, setNewMoveDate] = useState(new Date().toISOString().split('T')[0]);
@@ -153,6 +157,72 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setNewMoveMissing('');
   };
 
+  const addCustomRisk = () => {
+    if (customRiskInput.trim()) {
+        const newTypes = [...report.riscos.tipos, customRiskInput.trim()];
+        setReport({...report, riscos: {...report.riscos, tipos: newTypes}});
+        setCustomRiskInput('');
+        setIsAddingCustomRisk(false);
+    }
+  };
+
+  const handleMovePost = async (index: number, direction: 'up' | 'down') => {
+    // A lista 'posts' recebida já está ordenada. 
+    // Vamos clonar para manipular
+    const newPosts = [...posts];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (targetIndex < 0 || targetIndex >= newPosts.length) return;
+
+    // Troca
+    const itemA = newPosts[index];
+    const itemB = newPosts[targetIndex];
+
+    // Se eles não têm ordem definida, assumimos o index atual
+    const orderA = itemA.order ?? index;
+    const orderB = itemB.order ?? targetIndex;
+
+    // Trocamos os valores de order
+    // Para garantir consistência, vamos atribuir a 'order' de B para A e vice-versa, 
+    // ou simplesmente trocar suas posições no array e re-indexar tudo se quiséssemos ser muito estritos.
+    // Mas trocar os valores é mais eficiente.
+    
+    // ATENÇÃO: Se as ordens forem iguais (ex: 0 e 0), a troca não fará efeito na ordenação.
+    // Por isso, é mais seguro atribuir indices sequenciais baseados na posição desejada.
+    // Vamos atribuir targetIndex para A e index para B
+    
+    // Melhor abordagem: Atribuir ordem baseada no array visual
+    newPosts[index] = itemB;
+    newPosts[targetIndex] = itemA;
+
+    // Agora iteramos e salvamos a ordem para os dois itens trocados (ou para todos, mas vamos focar nos 2)
+    // Para evitar conflitos, é melhor re-salvar a ordem baseada no índice do array
+    
+    const updatePromises = [];
+    
+    // Atualiza itemA (agora na posição targetIndex)
+    const newOrderA = targetIndex;
+    updatePromises.push(onEditPost(itemA.id, itemA.topicId, itemA.description, itemA.chartConfig, {
+        ...itemA, // preserva extraData existente
+        report: itemA.report,
+        progress: itemA.progress,
+        progressHistory: itemA.progressHistory,
+        order: newOrderA // Nova ordem
+    }));
+
+    // Atualiza itemB (agora na posição index)
+    const newOrderB = index;
+    updatePromises.push(onEditPost(itemB.id, itemB.topicId, itemB.description, itemB.chartConfig, {
+        ...itemB,
+        report: itemB.report,
+        progress: itemB.progress,
+        progressHistory: itemB.progressHistory,
+        order: newOrderB // Nova ordem
+    }));
+
+    await Promise.all(updatePromises);
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4">
@@ -215,6 +285,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {activeTab === 'add' ? (
               <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
                 
+                {/* Steps 1-7 (Mantidos conforme código anterior, mas omitidos para brevidade onde não houve mudança lógica, apenas renderização) */}
+                
                 {/* Passo 1 - Mantido */}
                 {formStep === 1 && (
                   <div className="space-y-8">
@@ -232,7 +304,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                        </div>
                     </div>
                     
-                    {/* Seletor de Status Geral */}
                     <div className="p-6 bg-slate-900 border border-slate-800 rounded-2xl space-y-3">
                          <label className="text-[10px] font-black text-slate-500 uppercase">Status Geral do Indicador (Aparece na Lista)</label>
                          <div className="flex gap-4">
@@ -285,8 +356,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                 )}
-
-                {/* Passo 2: Semáforo (Mantido) */}
+                
+                {/* Steps 2, 3, 4, 5, 6, 7 Renderizados como anteriormente (omitidos para focar na mudança do 8 e lista) */}
+                {/* ... (Conteúdo repetido dos steps 2 a 7) ... */}
                 {formStep === 2 && (
                     <div className="space-y-8">
                         <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">2. Regras de Calibração</h3>
@@ -319,131 +391,118 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                     </div>
                 )}
-
-                {/* Passo 3: Dados & Gráfico (Mantido) */}
                 {formStep === 3 && (
-                  <div className="space-y-8">
-                    <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">3. Dados e Visualização</h3>
-                    
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-                        <label className="text-[10px] font-black text-slate-500 uppercase block mb-3">Tipo de Visualização</label>
-                        <div className="flex gap-3">
-                            {[
-                                {id: 'bar', label: 'Barras', icon: BarChart},
-                                {id: 'line', label: 'Linha', icon: LineChart},
-                                {id: 'pie', label: 'Pizza', icon: PieChart},
-                            ].map(t => (
-                                <button 
-                                    key={t.id} 
-                                    onClick={() => setChartType(t.id as any)}
-                                    className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold uppercase transition-all ${chartType === t.id ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-white'}`}
-                                >
-                                    <t.icon size={16}/> {t.label}
-                                </button>
-                            ))}
+                    <div className="space-y-8">
+                        <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">3. Dados e Visualização</h3>
+                        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                            <label className="text-[10px] font-black text-slate-500 uppercase block mb-3">Tipo de Visualização</label>
+                            <div className="flex gap-3">
+                                {[
+                                    {id: 'bar', label: 'Barras', icon: BarChart},
+                                    {id: 'line', label: 'Linha', icon: LineChart},
+                                    {id: 'pie', label: 'Pizza', icon: PieChart},
+                                ].map(t => (
+                                    <button 
+                                        key={t.id} 
+                                        onClick={() => setChartType(t.id as any)}
+                                        className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-xs font-bold uppercase transition-all ${chartType === t.id ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-white'}`}
+                                    >
+                                        <t.icon size={16}/> {t.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontos de Dados (Eixo X, Valor, Cor)</h4>
+                            <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
+                                {builderRows.map((r, i) => (
+                                <div key={i} className="flex gap-2 mb-2 items-center">
+                                    <input value={r.label} onChange={e => { const n = [...builderRows]; n[i].label = e.target.value; setBuilderRows(n); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-xs" placeholder="Rótulo (Ex: Jan)" />
+                                    <input type="number" value={r.Valor} onChange={e => { const n = [...builderRows]; n[i].Valor = e.target.value; setBuilderRows(n); }} className="w-24 bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 text-xs font-bold" placeholder="Valor" />
+                                    <div className="relative w-10 h-10 overflow-hidden rounded-xl border border-slate-800">
+                                    <input type="color" value={r.color || '#10b981'} onChange={e => { const n = [...builderRows]; n[i].color = e.target.value; setBuilderRows(n); }} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                                    </div>
+                                    <button onClick={() => setBuilderRows(builderRows.filter((_, idx) => idx !== i))} className="p-2 text-slate-700 hover:text-red-500"><X size={18}/></button>
+                                </div>
+                                ))}
+                                <button onClick={() => setBuilderRows([...builderRows, {label: '', Valor: 0, color: '#10b981'}])} className="text-[10px] font-black text-emerald-400 mt-2 uppercase flex items-center gap-1"><Plus size={14}/> Adicionar Ponto</button>
+                            </div>
                         </div>
                     </div>
-
-                    <div className="space-y-4">
-                       <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontos de Dados (Eixo X, Valor, Cor)</h4>
-                       <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
-                          {builderRows.map((r, i) => (
-                            <div key={i} className="flex gap-2 mb-2 items-center">
-                               <input value={r.label} onChange={e => { const n = [...builderRows]; n[i].label = e.target.value; setBuilderRows(n); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-xs" placeholder="Rótulo (Ex: Jan)" />
-                               <input type="number" value={r.Valor} onChange={e => { const n = [...builderRows]; n[i].Valor = e.target.value; setBuilderRows(n); }} className="w-24 bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 text-xs font-bold" placeholder="Valor" />
-                               
-                               {/* Seletor de Cor */}
-                               <div className="relative w-10 h-10 overflow-hidden rounded-xl border border-slate-800">
-                                 <input type="color" value={r.color || '#10b981'} onChange={e => { const n = [...builderRows]; n[i].color = e.target.value; setBuilderRows(n); }} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
-                               </div>
-
-                               <button onClick={() => setBuilderRows(builderRows.filter((_, idx) => idx !== i))} className="p-2 text-slate-700 hover:text-red-500"><X size={18}/></button>
-                            </div>
-                          ))}
-                          <button onClick={() => setBuilderRows([...builderRows, {label: '', Valor: 0, color: '#10b981'}])} className="text-[10px] font-black text-emerald-400 mt-2 uppercase flex items-center gap-1"><Plus size={14}/> Adicionar Ponto</button>
-                       </div>
-                    </div>
-                  </div>
                 )}
-
-                {/* Passo 4: Resumo Executivo (Mantido) */}
                 {formStep === 4 && (
-                  <div className="space-y-6">
+                    <div className="space-y-6">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">4. Resumo Executivo</h3>
                     <div className="space-y-6">
-                      <div className="space-y-2">
+                        <div className="space-y-2">
                         <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest flex items-center gap-2">Avanços</label>
                         <textarea value={report.resumoAvanços} onChange={e => setReport({...report, resumoAvanços: e.target.value})} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white h-24" />
-                      </div>
-                      <div className="space-y-2">
+                        </div>
+                        <div className="space-y-2">
                         <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest flex items-center gap-2">Atrasos</label>
                         <textarea value={report.resumoAtrasos} onChange={e => setReport({...report, resumoAtrasos: e.target.value})} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white h-24" />
-                      </div>
-                      <div className="space-y-2">
+                        </div>
+                        <div className="space-y-2">
                         <label className="text-[10px] font-black text-blue-400 uppercase tracking-widest flex items-center gap-2">Decisões Necessárias</label>
                         <textarea value={report.resumoDecisoes} onChange={e => setReport({...report, resumoDecisoes: e.target.value})} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white h-24" />
-                      </div>
+                        </div>
                     </div>
-                  </div>
+                    </div>
                 )}
-
-                {/* Passo 5: Informações do Indicador (Tabela Reformulada com Ícones) */}
                 {formStep === 5 && (
-                  <div className="space-y-8">
+                    <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">5. Informações do Indicador</h3>
                     <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-                       <table className="w-full text-xs text-left">
-                         <thead className="bg-slate-950 text-slate-500 font-black uppercase">
-                           <tr>
-                             <th className="p-4">Indicador</th>
-                             <th className="p-4">Resultado</th>
-                             <th className="p-4">Meta</th>
-                             <th className="p-4">Sinal</th>
-                             <th className="p-4">Tendência</th>
-                             <th className="p-4">Fonte</th>
-                             <th className="p-4"></th>
-                           </tr>
-                         </thead>
-                         <tbody className="divide-y divide-slate-800">
-                           {report.indicadoresChave.map((ind, i) => (
-                             <tr key={i} className="hover:bg-slate-800/20">
-                               <td className="p-2"><input value={ind.nome} onChange={e => { const n = [...report.indicadoresChave]; n[i].nome = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-white outline-none" placeholder="Nome" /></td>
-                               <td className="p-2"><input value={ind.resultado} onChange={e => { const n = [...report.indicadoresChave]; n[i].resultado = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-emerald-400 font-bold outline-none" placeholder="100%" /></td>
-                               <td className="p-2"><input value={ind.meta} onChange={e => { const n = [...report.indicadoresChave]; n[i].meta = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-slate-400 outline-none" placeholder="120%" /></td>
-                               <td className="p-2">
-                                 <select value={ind.status} onChange={e => { const n = [...report.indicadoresChave]; n[i].status = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
-                                   <option value="green">🟢</option>
-                                   <option value="yellow">🟡</option>
-                                   <option value="red">🔴</option>
-                                 </select>
-                               </td>
-                               <td className="p-2">
-                                 {/* Dropdown com visualização mais clara para o admin */}
-                                 <div className="relative">
-                                     <select value={ind.tendencia} onChange={e => { const n = [...report.indicadoresChave]; n[i].tendencia = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px] appearance-none pl-6 pr-2">
-                                       <option value="up">Crescimento</option>
-                                       <option value="stable">Estável</option>
-                                       <option value="down">Queda</option>
-                                     </select>
-                                     <div className="absolute left-1 top-1.5 pointer-events-none">
+                        <table className="w-full text-xs text-left">
+                            <thead className="bg-slate-950 text-slate-500 font-black uppercase">
+                            <tr>
+                                <th className="p-4">Indicador</th>
+                                <th className="p-4">Resultado</th>
+                                <th className="p-4">Meta</th>
+                                <th className="p-4">Sinal</th>
+                                <th className="p-4">Tendência</th>
+                                <th className="p-4">Fonte</th>
+                                <th className="p-4"></th>
+                            </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-800">
+                            {report.indicadoresChave.map((ind, i) => (
+                                <tr key={i} className="hover:bg-slate-800/20">
+                                <td className="p-2"><input value={ind.nome} onChange={e => { const n = [...report.indicadoresChave]; n[i].nome = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-white outline-none" placeholder="Nome" /></td>
+                                <td className="p-2"><input value={ind.resultado} onChange={e => { const n = [...report.indicadoresChave]; n[i].resultado = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-emerald-400 font-bold outline-none" placeholder="100%" /></td>
+                                <td className="p-2"><input value={ind.meta} onChange={e => { const n = [...report.indicadoresChave]; n[i].meta = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-slate-400 outline-none" placeholder="120%" /></td>
+                                <td className="p-2">
+                                    <select value={ind.status} onChange={e => { const n = [...report.indicadoresChave]; n[i].status = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
+                                    <option value="green">🟢</option>
+                                    <option value="yellow">🟡</option>
+                                    <option value="red">🔴</option>
+                                    </select>
+                                </td>
+                                <td className="p-2">
+                                    <div className="relative">
+                                        <select value={ind.tendencia} onChange={e => { const n = [...report.indicadoresChave]; n[i].tendencia = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px] appearance-none pl-6 pr-2">
+                                        <option value="up">Crescimento</option>
+                                        <option value="stable">Estável</option>
+                                        <option value="down">Queda</option>
+                                        </select>
+                                        <div className="absolute left-1 top-1.5 pointer-events-none">
                                         {ind.tendencia === 'up' && <TrendingUp size={12} className="text-emerald-500" />}
                                         {ind.tendencia === 'down' && <TrendingDown size={12} className="text-red-500" />}
                                         {ind.tendencia === 'stable' && <Minus size={12} className="text-slate-500" />}
-                                     </div>
-                                 </div>
-                               </td>
-                               <td className="p-2"><input value={ind.fonte} onChange={e => { const n = [...report.indicadoresChave]; n[i].fonte = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-slate-500 outline-none" placeholder="Fonte" /></td>
-                               <td className="p-2 text-center"><button onClick={() => setReport({...report, indicadoresChave: report.indicadoresChave.filter((_, idx) => idx !== i)})} className="text-slate-600 hover:text-red-500"><Trash2 size={14}/></button></td>
-                             </tr>
-                           ))}
-                         </tbody>
-                       </table>
-                       <button onClick={() => setReport({...report, indicadoresChave: [...report.indicadoresChave, {nome: '', meta: '', resultado: '', status: 'green', tendencia: 'stable', fonte: ''}]})} className="w-full p-4 bg-slate-800 text-xs font-black uppercase text-emerald-400 hover:bg-slate-700 transition-all">+ Nova Linha de Informação</button>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td className="p-2"><input value={ind.fonte} onChange={e => { const n = [...report.indicadoresChave]; n[i].fonte = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-slate-500 outline-none" placeholder="Fonte" /></td>
+                                <td className="p-2 text-center"><button onClick={() => setReport({...report, indicadoresChave: report.indicadoresChave.filter((_, idx) => idx !== i)})} className="text-slate-600 hover:text-red-500"><Trash2 size={14}/></button></td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                        <button onClick={() => setReport({...report, indicadoresChave: [...report.indicadoresChave, {nome: '', meta: '', resultado: '', status: 'green', tendencia: 'stable', fonte: ''}]})} className="w-full p-4 bg-slate-800 text-xs font-black uppercase text-emerald-400 hover:bg-slate-700 transition-all">+ Nova Linha de Informação</button>
                     </div>
-                  </div>
+                    </div>
                 )}
-
-                {/* Demais Passos mantidos */}
                 {formStep === 6 && (
                   <div className="space-y-6">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">6. Entregas Prioritárias</h3>
@@ -482,8 +541,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                 )}
-                
-                {/* Passo 7, 8, 9 mantidos */}
                 {formStep === 7 && (
                   <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">7. Problemas e Decisões</h3>
@@ -530,15 +587,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 )}
                 
+                {/* Passo 8 Modificado com Input para "Outros" */}
                 {formStep === 8 && (
                    <div className="space-y-10">
                       <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">8. Riscos</h3>
                       <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 space-y-8 shadow-2xl">
                          <div className="space-y-4">
                             <div className="flex flex-wrap gap-3">
-                               {['Fiscal', 'Jurídico', 'Operacional', 'Político', 'Reputacional', 'Outros'].map(t => (
+                               {['Fiscal', 'Jurídico', 'Operacional', 'Político', 'Reputacional'].map(t => (
                                  <button key={t} onClick={() => { const n = report.riscos.tipos.includes(t) ? report.riscos.tipos.filter(x => x !== t) : [...report.riscos.tipos, t]; setReport({...report, riscos: {...report.riscos, tipos: n}}); }} className={`px-5 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${report.riscos.tipos.includes(t) ? 'bg-red-600 border-red-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-600'}`}>{t}</button>
                                ))}
+                               {/* Exibir itens personalizados adicionados */}
+                               {report.riscos.tipos.filter(t => !['Fiscal', 'Jurídico', 'Operacional', 'Político', 'Reputacional'].includes(t)).map(t => (
+                                   <button key={t} onClick={() => { const n = report.riscos.tipos.filter(x => x !== t); setReport({...report, riscos: {...report.riscos, tipos: n}}); }} className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase border bg-red-600 border-red-500 text-white flex items-center gap-2">
+                                       {t} <X size={12}/>
+                                   </button>
+                               ))}
+
+                               {/* Botão/Input para adicionar novo */}
+                               {!isAddingCustomRisk ? (
+                                   <button onClick={() => setIsAddingCustomRisk(true)} className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase border border-slate-700 bg-slate-900 text-slate-400 hover:bg-slate-800 transition-all flex items-center gap-2">
+                                       Outros +
+                                   </button>
+                               ) : (
+                                   <div className="flex items-center gap-2">
+                                       <input 
+                                           value={customRiskInput} 
+                                           onChange={e => setCustomRiskInput(e.target.value)} 
+                                           className="px-4 py-2.5 rounded-xl text-xs bg-slate-950 border border-slate-700 text-white outline-none focus:border-emerald-500"
+                                           placeholder="Digite o risco..."
+                                           autoFocus
+                                           onKeyDown={e => e.key === 'Enter' && addCustomRisk()}
+                                       />
+                                       <button onClick={addCustomRisk} className="p-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl"><CheckCircle2 size={16}/></button>
+                                       <button onClick={() => setIsAddingCustomRisk(false)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl"><X size={16}/></button>
+                                   </div>
+                               )}
                             </div>
                          </div>
                          <textarea value={report.riscos.descricao} onChange={e => setReport({...report, riscos: {...report.riscos, descricao: e.target.value}})} className="w-full p-6 bg-slate-950 border border-slate-800 rounded-3xl text-white text-sm" placeholder="Descreva..." h-40 />
@@ -546,6 +630,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                    </div>
                 )}
 
+                {/* Passo 9 Mantido */}
                 {formStep === 9 && (
                    <div className="space-y-8 text-center max-w-xl mx-auto">
                       <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">9. Atualizar Evolução</h3>
@@ -572,14 +657,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
               </div>
             ) : (
-              // Modo Lista (Catálogo)
+              // Modo Lista (Catálogo) - Atualizado com Reordenação
               <div className="space-y-6">
                 <div className="flex justify-between items-end mb-6 px-4">
                   <h3 className="text-2xl font-black text-white">Catálogo</h3>
                   <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{posts.length} Cadastrados</p>
                 </div>
                 <div className="grid grid-cols-1 gap-4">
-                  {posts.map(post => (
+                  {posts.map((post, index) => (
                     <div key={post.id} className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800 flex items-center justify-between group hover:border-emerald-500/30 transition-all">
                       <div className="flex items-center gap-6">
                         <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center border border-slate-800 group-hover:scale-105 transition-all relative">
@@ -593,6 +678,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
+                        {/* Botões de Reordenação */}
+                        <div className="flex flex-col gap-1 mr-4 border-r border-slate-800 pr-4">
+                            <button 
+                                onClick={() => handleMovePost(index, 'up')} 
+                                disabled={index === 0}
+                                className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-emerald-400 disabled:opacity-20 disabled:hover:text-slate-500"
+                            >
+                                <ArrowUp size={16} />
+                            </button>
+                            <button 
+                                onClick={() => handleMovePost(index, 'down')} 
+                                disabled={index === posts.length - 1}
+                                className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-emerald-400 disabled:opacity-20 disabled:hover:text-slate-500"
+                            >
+                                <ArrowDown size={16} />
+                            </button>
+                        </div>
+
                         <button onClick={() => handleEditClick(post)} className="p-3 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white rounded-xl transition-all"><Pencil size={18}/></button>
                         <button onClick={() => onDeletePost(post.id)} className="p-3 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all"><Trash2 size={18}/></button>
                       </div>

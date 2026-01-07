@@ -28,12 +28,33 @@ function App() {
            chartConfig: typeof p.chartConfig === 'string' ? JSON.parse(p.chartConfig) : p.chartConfig
          };
       });
-      setPosts(parsedPosts || []);
+
+      // Ordenação: Primeiro pelo campo 'order' (crescente), depois por data de criação (decrescente) como fallback
+      const sortedPosts = parsedPosts.sort((a: Post, b: Post) => {
+          const orderA = a.order !== undefined ? a.order : 99999;
+          const orderB = b.order !== undefined ? b.order : 99999;
+          
+          if (orderA !== orderB) {
+              return orderA - orderB;
+          }
+          return b.createdAt - a.createdAt;
+      });
+
+      setPosts(sortedPosts || []);
       setUsingServer(true);
     } catch (err) {
       setUsingServer(false);
       const localData = localStorage.getItem('posts');
-      if (localData) setPosts(JSON.parse(localData));
+      if (localData) {
+          const parsedLocal = JSON.parse(localData);
+          // Aplica a mesma ordenação para dados locais
+          const sortedLocal = parsedLocal.sort((a: Post, b: Post) => {
+            const orderA = a.order !== undefined ? a.order : 99999;
+            const orderB = b.order !== undefined ? b.order : 99999;
+            return orderA - orderB || b.createdAt - a.createdAt;
+          });
+          setPosts(sortedLocal);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -42,12 +63,16 @@ function App() {
   useEffect(() => { fetchPosts(); }, []);
 
   const handleAddPost = async (topicId: TopicId, description: string, chartConfig: ChartConfig, extraData: any) => {
+    // Novos posts vão para o final da lista por padrão (ordem alta)
+    const maxOrder = posts.length > 0 ? Math.max(...posts.map(p => p.order || 0)) : 0;
+    
     const newPost: Post = {
       id: Date.now().toString(),
       topicId,
       description,
       chartConfig,
       createdAt: Date.now(),
+      order: maxOrder + 1,
       ...extraData
     };
 
@@ -59,11 +84,11 @@ function App() {
           body: JSON.stringify(newPost),
         });
         if (!response.ok) throw new Error('Erro salvar');
-        setPosts(prev => [newPost, ...prev]);
+        setPosts(prev => [...prev, newPost].sort((a,b) => (a.order||0)-(b.order||0)));
         return true;
       } catch (err) { return false; }
     } else {
-      const updated = [newPost, ...posts];
+      const updated = [...posts, newPost].sort((a,b) => (a.order||0)-(b.order||0));
       setPosts(updated);
       localStorage.setItem('posts', JSON.stringify(updated));
       return true;
@@ -80,11 +105,12 @@ function App() {
           body: JSON.stringify(updatedFields),
         });
         if (!response.ok) throw new Error('Erro update');
-        setPosts(prev => prev.map(p => p.id === postId ? { ...p, ...updatedFields } : p));
+        // Atualiza e reordena
+        setPosts(prev => prev.map(p => p.id === postId ? { ...p, ...updatedFields } : p).sort((a,b) => (a.order||9999)-(b.order||9999)));
         return true;
       } catch (err) { return false; }
     } else {
-      const updated = posts.map(p => p.id === postId ? { ...p, ...updatedFields } : p);
+      const updated = posts.map(p => p.id === postId ? { ...p, ...updatedFields } : p).sort((a,b) => (a.order||9999)-(b.order||9999));
       setPosts(updated);
       localStorage.setItem('posts', JSON.stringify(updated));
       return true;
@@ -208,7 +234,8 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
   const { topicId } = useParams();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
   const topic = TOPICS.find(t => t.id === topicId);
-  const topicPosts = posts.filter(p => p.topicId === topicId).sort((a, b) => b.createdAt - a.createdAt);
+  // Posts já estão ordenados pelo fetchPosts
+  const topicPosts = posts.filter(p => p.topicId === topicId);
 
   if (!topic) return <div className="text-center py-20">Não encontrado</div>;
 
