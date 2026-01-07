@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert, ExternalLink, ArrowRight } from 'lucide-react';
 import { TOPICS } from './constants';
 import { Post, TopicId, ChartConfig, ProgressUpdate } from './types';
 import { TopicCard } from './components/TopicCard';
@@ -179,35 +179,52 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {topicPosts.map(post => (
-          <div key={post.id} className="bg-slate-900/40 border border-slate-800/60 rounded-3xl overflow-hidden hover:border-emerald-500/50 transition-all flex flex-col h-full group">
-            <div className="p-6 flex justify-between items-start bg-slate-900/80 border-b border-slate-800">
-              <div>
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">{post.recorrencia}</span>
-                <h3 className="font-bold text-lg text-slate-100">{post.chartConfig.title}</h3>
+        {topicPosts.map(post => {
+            const statusColor = post.semaforoGeral === 'yellow' ? 'bg-amber-500 shadow-amber-500/50' : post.semaforoGeral === 'red' ? 'bg-red-500 shadow-red-500/50' : 'bg-emerald-500 shadow-emerald-500/50';
+            const progressColor = post.progress >= 100 ? 'bg-emerald-500' : post.progress > 50 ? 'bg-blue-500' : 'bg-amber-500';
+
+            return (
+          <div key={post.id} className="bg-slate-900/40 border border-slate-800/60 rounded-3xl overflow-hidden hover:border-emerald-500/50 transition-all flex flex-col h-full group relative">
+            
+            <div className="p-6 flex justify-between items-start bg-slate-900/80 border-b border-slate-800 relative z-10">
+              <div className="flex items-start gap-4 pr-10">
+                 {/* Semáforo Geral ao lado do título (Pulsante) */}
+                 <div className={`mt-1.5 w-3 h-3 rounded-full shrink-0 shadow-[0_0_10px] animate-pulse ${statusColor}`}></div>
+                 <div>
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{post.recorrencia}</span>
+                    <h3 className="font-bold text-lg text-slate-100 leading-tight mt-1">{post.chartConfig.title}</h3>
+                 </div>
               </div>
-              <button onClick={() => setSelectedPost(post)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all"><Maximize2 size={18}/></button>
+              <button onClick={() => setSelectedPost(post)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all absolute top-6 right-6"><Maximize2 size={18}/></button>
             </div>
-            <div className="p-6 flex-1 space-y-5">
-              <div className="h-56 bg-slate-950/80 rounded-2xl p-4 border border-slate-800/50 shadow-inner">
+
+            <div className="p-6 flex-1 space-y-6">
+              {/* Gráfico Melhorado Visualmente */}
+              <div className="h-56 bg-[#0B1120] rounded-2xl p-4 border border-slate-800/80 shadow-inner overflow-hidden relative group-hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] transition-all">
                 <ChartRenderer config={post.chartConfig} />
               </div>
+
+              {/* Barra de Progresso Melhorada */}
               <div className="space-y-2">
-                <div className="flex justify-between text-[10px] font-black text-slate-500 uppercase tracking-tighter">
-                  <span>Progresso da Meta</span>
-                  <span className="text-emerald-400">{post.progress}%</span>
+                <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-tighter">
+                  <span>Execução da Meta</span>
+                  <span className={`${post.progress >= 100 ? 'text-emerald-400' : 'text-slate-200'}`}>{post.progress}%</span>
                 </div>
-                <div className="h-2.5 bg-slate-800/50 rounded-full overflow-hidden border border-slate-800">
-                  <div className="h-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-1000" style={{ width: `${post.progress}%` }}></div>
+                <div className="h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800/50 shadow-inner relative">
+                  {/* Fundo listrado animado */}
+                  <div className={`h-full ${progressColor} transition-all duration-1000 relative`} style={{ width: `${post.progress}%` }}>
+                     <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] opacity-50 animate-[pulse_2s_linear_infinite]"></div>
+                  </div>
                 </div>
               </div>
+              
               <div className="flex items-center justify-between text-[10px] text-slate-500 font-bold border-t border-slate-800 pt-4">
                 <span className="flex items-center gap-1.5"><User size={12}/> {post.responsavel}</span>
                 <span className="flex items-center gap-1.5"><Clock size={12}/> {new Date(post.dataAtualizacao).toLocaleDateString()}</span>
               </div>
             </div>
           </div>
-        ))}
+        )})}
       </div>
 
       {selectedPost && (
@@ -221,6 +238,9 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
   const r = post.report || {} as any;
   const semaforo = post.semaforoRules || { green: 'Normal', yellow: 'Atenção', red: 'Crítico' };
   
+  // Ordena histórico do mais recente para o mais antigo
+  const history = [...(post.progressHistory || [])].sort((a,b) => b.date - a.date);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl overflow-y-auto" onClick={onClose}>
       <div className="bg-[#0b1120] w-full max-w-6xl rounded-[2.5rem] border border-slate-800/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[92vh] animate-in slide-in-from-bottom-10 duration-500 overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -244,7 +264,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
 
         <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-12 custom-scrollbar">
           
-          {/* 1. CARTÃO DE IDENTIDADE (NOVO) */}
+          {/* 1. CARTÃO DE IDENTIDADE */}
           <div className="grid lg:grid-cols-2 gap-8">
             <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 space-y-6">
                <h3 className="text-xl font-black text-white flex items-center gap-2"><Info className="text-emerald-500"/> Definição Estratégica</h3>
@@ -302,12 +322,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                         <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div>
                         <span>{semaforo.red}</span>
                      </div>
-                     {r.acaoCrise && (
-                        <div className="mt-2 pt-2 border-t border-slate-800 text-[10px] text-red-400 font-bold uppercase">
-                           <span className="block mb-1 text-slate-600">Se Vermelho (Crise):</span>
-                           {r.acaoCrise}
-                        </div>
-                     )}
                   </div>
                </div>
             </div>
@@ -334,43 +348,72 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
 
           {/* 3. Painel de Indicadores */}
           <section className="space-y-8">
-            <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><TrendingUp className="text-emerald-500" size={24}/> Dados de Evolução</h3>
+            <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><TrendingUp className="text-emerald-500" size={24}/> Dados de Evolução e Informações</h3>
             <div className="grid lg:grid-cols-5 gap-8">
                <div className="lg:col-span-2 h-80 bg-slate-950/50 rounded-[2rem] p-8 border border-slate-800/80 shadow-2xl">
                  <ChartRenderer config={post.chartConfig} />
                </div>
                <div className="lg:col-span-3 bg-slate-900/20 rounded-[2rem] border border-slate-800/50 overflow-hidden">
+                 <div className="p-5 border-b border-slate-800 bg-slate-950/50">
+                    <h5 className="text-sm font-bold text-white uppercase tracking-wider">Informações do Indicador</h5>
+                 </div>
                  <table className="w-full text-left text-xs">
                    <thead className="bg-slate-900/80 text-slate-500 uppercase font-black tracking-widest border-b border-slate-800">
                      <tr>
-                       <th className="p-5">Indicador Secundário</th>
+                       <th className="p-5">Variável</th>
+                       <th className="p-5">Resultado</th>
                        <th className="p-5">Meta</th>
-                       <th className="p-5 text-center">Status</th>
-                       <th className="p-5 text-right">Resultado</th>
+                       <th className="p-5 text-center">Sinal</th>
+                       <th className="p-5 text-center">Tend.</th>
+                       <th className="p-5">Fonte</th>
                      </tr>
                    </thead>
                    <tbody className="divide-y divide-slate-800/30">
                      {r.indicadoresChave?.length > 0 ? r.indicadoresChave.map((ind: any, i: number) => (
                        <tr key={i} className="hover:bg-slate-800/20 transition-all">
-                         <td className="p-5">
-                            <div className="font-bold text-slate-100">{ind.nome}</div>
+                         <td className="p-5 font-bold text-slate-100">{ind.nome}</td>
+                         <td className="p-5 font-bold text-emerald-400">{ind.resultado}</td>
+                         <td className="p-5 text-slate-400">{ind.meta}</td>
+                         <td className="p-5 text-center">
+                              <div className={`w-3 h-3 rounded-full mx-auto ${ind.status === 'green' ? 'bg-emerald-500' : ind.status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
                          </td>
-                         <td className="p-5 text-slate-400 font-medium">{ind.meta}</td>
-                         <td className="p-5">
-                            <div className="flex justify-center">
-                              <div className={`w-4 h-4 rounded-full ${ind.status === 'green' ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.5)]' : ind.status === 'yellow' ? 'bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.5)]' : 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.5)]'}`}></div>
-                            </div>
+                         <td className="p-5 text-center font-bold text-slate-300">
+                            {ind.tendencia === 'up' ? '↑' : ind.tendencia === 'down' ? '↓' : '→'}
                          </td>
-                         <td className="p-5 text-right font-mono font-bold text-emerald-400">
-                            {ind.resultado}
-                         </td>
+                         <td className="p-5 text-slate-500 text-[10px]">{ind.fonte}</td>
                        </tr>
                      )) : (
-                       <tr><td colSpan={4} className="p-10 text-center text-slate-500 font-bold uppercase tracking-widest">Nenhum indicador secundário listado</td></tr>
+                       <tr><td colSpan={6} className="p-10 text-center text-slate-500 font-bold uppercase tracking-widest">Nenhuma informação adicional</td></tr>
                      )}
                    </tbody>
                  </table>
                </div>
+            </div>
+          </section>
+
+          {/* NOVA SEÇÃO: DETALHAMENTO DO PROGRESSO */}
+          <section className="space-y-6">
+            <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><History className="text-purple-500" size={24}/> Detalhamento do Progresso</h3>
+            <div className="bg-slate-900/30 p-8 rounded-[2rem] border border-slate-800 space-y-4">
+                {history.length > 0 ? (
+                    <div className="relative border-l border-slate-800 ml-4 space-y-8">
+                        {history.map((h, i) => (
+                            <div key={i} className="relative pl-8 group">
+                                <div className="absolute -left-1.5 top-1.5 w-3 h-3 rounded-full bg-slate-700 border-2 border-slate-900 group-hover:bg-emerald-500 transition-colors"></div>
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-2">
+                                    <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20">{h.percentage}% Concluído</span>
+                                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{new Date(h.date).toLocaleDateString()}</span>
+                                </div>
+                                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800/50 space-y-2">
+                                    <p className="text-sm text-slate-300"><span className="text-slate-500 font-bold uppercase text-[10px] mr-2">Feito:</span> {h.whatWasDone}</p>
+                                    {h.whatIsMissing && <p className="text-sm text-slate-400"><span className="text-slate-500 font-bold uppercase text-[10px] mr-2">Pendente:</span> {h.whatIsMissing}</p>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-slate-500 italic text-center py-4">Nenhum histórico de progresso registrado.</p>
+                )}
             </div>
           </section>
 
@@ -383,24 +426,28 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                  <thead className="bg-slate-900/80 text-slate-500 font-black uppercase tracking-widest border-b border-slate-800">
                    <tr>
                      <th className="p-5">Meta / Entrega</th>
-                     <th className="p-5">Prazo / Resp.</th>
+                     <th className="p-5">Prazo</th>
                      <th className="p-5 text-center">Status</th>
                      <th className="p-5">Evidência</th>
+                     <th className="p-5">Observação</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-800/30">
                    {r.metasPrioritarias?.map((m: any, i: number) => (
                      <tr key={i} className="hover:bg-slate-800/20 transition-all">
                        <td className="p-5 font-bold text-slate-100">{m.meta}</td>
-                       <td className="p-5">
-                          <div className="text-emerald-400 font-bold">{m.prazo}</div>
-                       </td>
+                       <td className="p-5 text-emerald-400 font-bold">{m.prazo}</td>
                        <td className="p-5 text-center">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border ${m.status === 'green' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : m.status === 'yellow' ? 'border-amber-500/30 text-amber-400 bg-amber-500/10' : 'border-red-500/30 text-red-400 bg-red-500/10'}`}>{m.status}</span>
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border ${m.status === 'green' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : m.status === 'yellow' ? 'border-amber-500/30 text-amber-400 bg-amber-500/10' : 'border-red-500/30 text-red-400 bg-red-500/10'}`}>
+                            {m.status === 'green' ? 'Normal' : m.status === 'yellow' ? 'Atenção' : 'Crítico'}
+                          </span>
                        </td>
                        <td className="p-5">
-                          <a href={m.evidencia} target="_blank" className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-bold underline"><LinkIcon size={12}/> Doc</a>
+                          {m.evidencia ? (
+                             <a href={m.evidencia} target="_blank" className="flex items-center gap-1.5 text-blue-400 hover:text-blue-300 font-bold underline"><ExternalLink size={12}/> Ver Doc</a>
+                          ) : <span className="text-slate-600">-</span>}
                        </td>
+                       <td className="p-5 text-slate-400 italic max-w-xs truncate" title={m.obs}>{m.obs || '-'}</td>
                      </tr>
                    ))}
                  </tbody>
@@ -411,8 +458,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
 
           {/* 5, 6, 7 & 8 - Painéis Combinados */}
           <div className="grid lg:grid-cols-2 gap-12">
-             
-             {/* Problemas Críticos */}
              <div className="space-y-6">
                 <h4 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-tight"><AlertTriangle className="text-amber-500" size={20}/> Problemas e Plano de Ataque</h4>
                 <div className="space-y-4">
@@ -431,7 +476,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                 </div>
              </div>
 
-             {/* Riscos e Alertas */}
              <div className="space-y-6">
                 <h4 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-tight"><ShieldAlert size={20} className="text-red-500"/> Riscos e Alertas</h4>
                 <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 space-y-6">
@@ -451,7 +495,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
         
         <div className="p-8 border-t border-slate-800 bg-slate-950 flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
            <span>Fonte Oficial: {post.fonteOficial}</span>
-           <span>SGC - Monitoramento de Resultados v1.1</span>
+           <span>SGC - Monitoramento de Resultados v1.2</span>
         </div>
       </div>
     </div>

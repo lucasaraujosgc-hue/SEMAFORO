@@ -24,7 +24,7 @@ export interface SemaforoConfig {
 }
 
 export interface ReportSection {
-  // 1. Identificação & Estratégia (NOVO)
+  // 1. Identificação & Estratégia
   objetivo: string;
   importanciaPrefeito: string;
   formula: string;
@@ -33,8 +33,8 @@ export interface ReportSection {
   secretaria: string;
   periodo: string;
   responsavelPolitico: string;
-  responsavelTecnico: string; // Coordenador do Censo, etc.
-  pontoFocal: { // Mantido para compatibilidade, mas responsavelTecnico é o principal
+  responsavelTecnico: string;
+  pontoFocal: {
     nome: string;
     cargo: string;
     telefone: string;
@@ -46,27 +46,30 @@ export interface ReportSection {
   resumoAtrasos: string;
   resumoDecisoes: string;
 
-  // 3. Indicadores-Chave (Tabela)
+  // 3. Dados do Gráfico (Gerenciado via ChartConfig, mas referenciado aqui logicamente)
+
+  // 5. Informações do Indicador (Antigo Indicadores Secundários)
+  // Campos: Resultado atual, Meta (trimestre/ano), Sinal (🟢/🟡/🔴), Tendência (↑/→/↓) e Fonte do dado
   indicadoresChave: Array<{
-    nome: string;
-    meta: string;
+    nome: string; // Nome do indicador/Variável
     resultado: string;
-    status: 'green' | 'yellow' | 'red';
+    meta: string;
+    status: 'green' | 'yellow' | 'red'; // Sinal
     tendencia: 'up' | 'stable' | 'down';
     fonte: string;
   }>;
 
-  // 4. Metas Prioritárias
+  // 6. Metas Prioritárias
   metasPrioritarias: Array<{
     meta: string;
     prazo: string;
     responsavel: string;
     status: 'green' | 'yellow' | 'red';
-    evidencia: string;
-    obs: string;
+    evidencia: string; // Link/Foto/SEI
+    obs: string; // Observação objetiva
   }>;
 
-  // 5. Problemas Críticos
+  // 7. Problemas Críticos
   problemasCriticos: Array<{
     problema: string;
     impacto: 'Alto' | 'Médio' | 'Baixo';
@@ -75,7 +78,7 @@ export interface ReportSection {
     prazo: string;
   }>;
 
-  // 6. Decisões Prefeito
+  // 6. Decisões Prefeito (Mantido no index 7 logicamente ou grupo de problemas)
   decisoesPrefeito: Array<{
     tema: string;
     decisao: string;
@@ -83,13 +86,13 @@ export interface ReportSection {
     prazo: string;
   }>;
 
-  // 7. Riscos e Alertas
+  // 8. Riscos e Alertas
   riscos: {
-    tipos: string[]; // Fiscal, Jurídico, etc.
+    tipos: string[];
     descricao: string;
   };
 
-  // 8. Compromissos Próximo Período
+  // 9. Compromissos Próximo Período
   compromissos: Array<{
     compromisso: string;
     prazo: string;
@@ -97,7 +100,7 @@ export interface ReportSection {
     evidencia: string;
   }>;
 
-  // 9. Anexos
+  // 10. Anexos
   anexos: string;
 }
 
@@ -120,25 +123,26 @@ export interface ExternalChartData {
 export interface ChartConfig {
   type: 'bar' | 'line' | 'pie';
   title: string;
-  data?: any;
+  data?: any; // Array de objetos { label, value, color }
   series?: any[];
-  color?: string;
+  color?: string; // Cor padrão
   options?: any;
 }
 
 export interface Post {
   id: string;
   topicId: TopicId;
-  description: string; // Usado como subtítulo ou contexto rápido
+  description: string;
   chartConfig: ChartConfig;
   createdAt: number;
   
-  responsavel: string; // Mantido para cards
+  responsavel: string;
   fonteOficial: string;
-  recorrencia: string; // Periodicidade (Semanal, Mensal)
+  recorrencia: string;
   dataAtualizacao: number;
   
-  semaforoRules: SemaforoConfig; // Regras personalizadas (Texto do Verde, Amarelo, Vermelho)
+  semaforoRules: SemaforoConfig;
+  semaforoGeral: 'green' | 'yellow' | 'red'; // Novo campo para o card da lista
   
   progress: number;
   progressHistory: ProgressUpdate[];
