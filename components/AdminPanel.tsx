@@ -37,6 +37,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState(''); // Feedback de erro
   const [activeTab, setActiveTab] = useState<'add' | 'list'>('add');
   const [formStep, setFormStep] = useState<number>(1);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
@@ -64,7 +65,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'azul') setIsAuthenticated(true);
+    setLoginError('');
+    // Normaliza a senha (remove espaços e ignora maiúsculas/minúsculas)
+    const normalizedPass = passwordInput.trim().toLowerCase();
+    
+    if (normalizedPass === 'azul') {
+      setIsAuthenticated(true);
+    } else {
+      setLoginError('Senha incorreta. Tente novamente.');
+      // Opcional: vibrar em mobile se suportado
+      if (navigator.vibrate) navigator.vibrate(200);
+    }
   };
 
   const handleEditClick = (post: Post) => {
@@ -125,14 +136,45 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   if (!isAuthenticated) {
     return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-2xl">
-        <div className="bg-slate-900 border border-slate-700 rounded-3xl p-12 w-full max-w-sm text-center space-y-8 shadow-2xl">
-          <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20"><Lock className="text-emerald-400" size={32}/></div>
-          <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Gestão Técnica</h2>
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4">
+        <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 md:p-12 w-full max-w-sm text-center space-y-8 shadow-2xl animate-in zoom-in-95 duration-300">
+          <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
+            <Lock className="text-emerald-400" size={32}/>
+          </div>
+          <div>
+            <h2 className="text-2xl font-black text-white uppercase tracking-tighter">Gestão Técnica</h2>
+            <p className="text-slate-500 text-sm mt-2">Área restrita para atualização de indicadores.</p>
+          </div>
+          
           <form onSubmit={handleLogin} className="space-y-4">
-            <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Senha" className="w-full p-4 bg-slate-950 border border-slate-800 rounded-2xl text-white text-center font-black outline-none focus:ring-2 focus:ring-emerald-500" autoFocus />
-            <button type="submit" className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase hover:bg-emerald-500 transition-all">Acessar</button>
-            <button type="button" onClick={onClose} className="text-xs text-slate-500 font-bold uppercase hover:text-white">Sair</button>
+            <div>
+              <input 
+                type="password" 
+                value={passwordInput} 
+                onChange={e => {
+                  setPasswordInput(e.target.value);
+                  setLoginError(''); // Limpa erro ao digitar
+                }} 
+                placeholder="Senha de Acesso" 
+                className={`w-full p-4 bg-slate-950 border ${loginError ? 'border-red-500 focus:ring-red-500' : 'border-slate-800 focus:ring-emerald-500'} rounded-2xl text-white text-center font-black outline-none focus:ring-2 transition-all`} 
+                autoFocus 
+              />
+              {loginError && (
+                <p className="text-red-400 text-xs font-bold mt-2 animate-pulse flex items-center justify-center gap-1">
+                  <AlertCircle size={12}/> {loginError}
+                </p>
+              )}
+            </div>
+            
+            <button 
+              type="submit" 
+              className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase hover:bg-emerald-500 hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-emerald-900/20"
+            >
+              Acessar Painel
+            </button>
+            <button type="button" onClick={onClose} className="text-xs text-slate-500 font-bold uppercase hover:text-white transition-colors pt-2">
+              Cancelar e Voltar
+            </button>
           </form>
         </div>
       </div>
@@ -161,7 +203,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           
           {/* Navegação de Etapas */}
           {activeTab === 'add' && (
-            <div className="w-64 bg-slate-900/30 border-r border-slate-800 p-6 flex flex-col gap-2 overflow-y-auto">
+            <div className="w-64 bg-slate-900/30 border-r border-slate-800 p-6 flex flex-col gap-2 overflow-y-auto hidden md:flex">
               {[
                 { id: 1, label: '1. Definição Estratégica', icon: BookOpen },
                 { id: 2, label: '2. Regras do Semáforo', icon: AlertOctagon },
@@ -189,7 +231,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           )}
 
           {/* Conteúdo do Formulário */}
-          <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar">
+            
+            {/* Menu Mobile para Etapas */}
+            {activeTab === 'add' && (
+              <div className="md:hidden mb-6 flex overflow-x-auto gap-2 pb-2">
+                 {[1,2,3,4,5,6,7,8,9].map(step => (
+                    <button 
+                      key={step} 
+                      onClick={() => setFormStep(step)}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold whitespace-nowrap ${formStep === step ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-400'}`}
+                    >
+                      Etapa {step}
+                    </button>
+                 ))}
+              </div>
+            )}
+
             {activeTab === 'add' ? (
               <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
                 
