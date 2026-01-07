@@ -24,11 +24,17 @@ export interface SemaforoConfig {
 }
 
 export interface ReportSection {
-  // 1. Identificação
+  // 1. Identificação & Estratégia (NOVO)
+  objetivo: string;
+  importanciaPrefeito: string;
+  formula: string;
+  acaoCrise: string; // Ação automática se RED
+  
   secretaria: string;
   periodo: string;
   responsavelPolitico: string;
-  pontoFocal: {
+  responsavelTecnico: string; // Coordenador do Censo, etc.
+  pontoFocal: { // Mantido para compatibilidade, mas responsavelTecnico é o principal
     nome: string;
     cargo: string;
     telefone: string;
@@ -79,7 +85,7 @@ export interface ReportSection {
 
   // 7. Riscos e Alertas
   riscos: {
-    tipos: string[]; // Fiscal, Jurídico, Operacional, Político, Reputacional, Outros
+    tipos: string[]; // Fiscal, Jurídico, etc.
     descricao: string;
   };
 
@@ -123,14 +129,17 @@ export interface ChartConfig {
 export interface Post {
   id: string;
   topicId: TopicId;
-  description: string;
+  description: string; // Usado como subtítulo ou contexto rápido
   chartConfig: ChartConfig;
   createdAt: number;
-  responsavel: string;
+  
+  responsavel: string; // Mantido para cards
   fonteOficial: string;
-  recorrencia: string;
+  recorrencia: string; // Periodicidade (Semanal, Mensal)
   dataAtualizacao: number;
-  semaforoRules: SemaforoConfig;
+  
+  semaforoRules: SemaforoConfig; // Regras personalizadas (Texto do Verde, Amarelo, Vermelho)
+  
   progress: number;
   progressHistory: ProgressUpdate[];
   report: ReportSection;
