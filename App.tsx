@@ -173,13 +173,35 @@ const SemaforoWithTooltip = ({ status, rules, sizeClass = "w-4 h-4" }: { status:
            <div className="bg-black/90 backdrop-blur-xl text-white text-xs p-3 rounded-xl border border-slate-700 shadow-2xl relative">
               <span className={`block w-2 h-2 rounded-full mb-1 ${status === 'green' ? 'bg-emerald-500' : status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
               <p className="font-medium leading-tight">{text}</p>
-              {/* Seta do tooltip */}
               <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
            </div>
         </div>
       )}
     </div>
   );
+};
+
+// Novo Componente para Tendência Bonita
+const TrendBadge = ({ type }: { type: 'up' | 'down' | 'stable' }) => {
+    if (type === 'up') {
+        return (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold text-[10px] uppercase tracking-wide">
+                <TrendingUp size={14} /> Crescimento
+            </div>
+        );
+    }
+    if (type === 'down') {
+        return (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 font-bold text-[10px] uppercase tracking-wide">
+                <TrendingDown size={14} /> Queda
+            </div>
+        );
+    }
+    return (
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-500/10 border border-slate-500/20 text-slate-400 font-bold text-[10px] uppercase tracking-wide">
+            <Minus size={14} /> Estável
+        </div>
+    );
 };
 
 const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boolean }) => {
@@ -202,10 +224,8 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {topicPosts.map(post => {
-            // Status Geral
             const status = post.semaforoGeral || 'green';
             const rules = post.semaforoRules || { green: 'Normal', yellow: 'Atenção', red: 'Crítico' };
-            
             const progressColor = post.progress >= 100 ? 'bg-emerald-500' : post.progress > 50 ? 'bg-blue-500' : 'bg-amber-500';
 
             return (
@@ -213,7 +233,6 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
             
             <div className="p-6 flex items-start justify-between bg-slate-900/80 border-b border-slate-800 relative z-10">
               <div className="flex items-start gap-5 pr-10 w-full">
-                 {/* Semáforo Geral GIGANTE com Tooltip */}
                  <div className="mt-1 shrink-0">
                     <SemaforoWithTooltip status={status} rules={rules} sizeClass="w-12 h-12" />
                  </div>
@@ -227,8 +246,8 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
             </div>
 
             <div className="p-6 flex-1 space-y-6">
-              {/* Gráfico Reduzido (h-40) */}
-              <div className="h-40 bg-[#0B1120] rounded-2xl p-4 border border-slate-800/80 shadow-inner overflow-hidden relative group-hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] transition-all">
+              {/* Gráfico Reduzido, mas com mais altura (h-52) */}
+              <div className="h-52 bg-[#0B1120] rounded-2xl p-4 border border-slate-800/80 shadow-inner overflow-hidden relative group-hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] transition-all">
                 <ChartRenderer config={post.chartConfig} />
               </div>
 
@@ -265,14 +284,12 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
   const r = post.report || {} as any;
   const semaforoRules = post.semaforoRules || { green: 'Normal', yellow: 'Atenção', red: 'Crítico' };
   
-  // Ordena histórico do mais recente para o mais antigo
   const history = [...(post.progressHistory || [])].sort((a,b) => b.date - a.date);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl overflow-y-auto" onClick={onClose}>
       <div className="bg-[#0b1120] w-full max-w-6xl rounded-[2.5rem] border border-slate-800/50 shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col max-h-[92vh] animate-in slide-in-from-bottom-10 duration-500 overflow-hidden" onClick={e => e.stopPropagation()}>
         
-        {/* Header Relatório */}
         <div className="p-8 border-b border-slate-800 bg-slate-900/40 flex justify-between items-center shrink-0">
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 bg-white p-2 rounded-2xl shrink-0">
@@ -291,7 +308,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
 
         <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-12 custom-scrollbar">
           
-          {/* 1. SEÇÃO DE DADOS DE EVOLUÇÃO E INFORMAÇÕES (MOVIDO PARA O TOPO) */}
           <section className="space-y-8">
             <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><TrendingUp className="text-emerald-500" size={24}/> Dados de Evolução e Informações</h3>
             <div className="grid lg:grid-cols-5 gap-8">
@@ -321,12 +337,14 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                          <td className="p-5 text-slate-400">{ind.meta}</td>
                          <td className="p-5 text-center">
                               <div className="flex justify-center">
-                                {/* Usando o componente com Tooltip */}
                                 <SemaforoWithTooltip status={ind.status} rules={semaforoRules} />
                               </div>
                          </td>
                          <td className="p-5 text-center font-bold text-slate-300">
-                            {ind.tendencia === 'up' ? '↑' : ind.tendencia === 'down' ? '↓' : '→'}
+                            {/* Usando o novo TrendBadge */}
+                            <div className="flex justify-center">
+                                <TrendBadge type={ind.tendencia} />
+                            </div>
                          </td>
                          <td className="p-5 text-slate-500 text-[10px]">{ind.fonte}</td>
                        </tr>
@@ -339,7 +357,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
             </div>
           </section>
 
-          {/* 2. CARTÃO DE IDENTIDADE (MOVIDO PARA SEGUNDO) */}
           <div className="grid lg:grid-cols-2 gap-8">
             <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 space-y-6">
                <h3 className="text-xl font-black text-white flex items-center gap-2"><Info className="text-emerald-500"/> Definição Estratégica</h3>
@@ -381,7 +398,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                   </div>
                </div>
 
-               {/* Semáforo Card */}
                <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 space-y-4">
                   <h3 className="text-xl font-black text-white flex items-center gap-2"><AlertCircle className="text-purple-500"/> Calibragem do Semáforo</h3>
                   <div className="space-y-3">
@@ -402,7 +418,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
             </div>
           </div>
 
-          {/* 3. Resumo Executivo */}
           <section className="space-y-6">
             <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><FileText className="text-emerald-500" size={24}/> Resumo Executivo do Período</h3>
             <div className="grid md:grid-cols-3 gap-8">
@@ -421,7 +436,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
             </div>
           </section>
 
-          {/* 4. NOVA SEÇÃO: DETALHAMENTO DO PROGRESSO */}
           <section className="space-y-6">
             <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><History className="text-purple-500" size={24}/> Detalhamento do Progresso</h3>
             <div className="bg-slate-900/30 p-8 rounded-[2rem] border border-slate-800 space-y-4">
@@ -447,7 +461,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
             </div>
           </section>
 
-          {/* 5. Metas Prioritárias */}
           {r.metasPrioritarias?.length > 0 && (
           <section className="space-y-6">
             <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><Target className="text-emerald-500" size={24}/> Metas Prioritárias</h3>
@@ -469,7 +482,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                        <td className="p-5 text-emerald-400 font-bold">{m.prazo}</td>
                        <td className="p-5 text-center">
                           <div className="flex justify-center">
-                             {/* Agora usa o sinal com tooltip em vez de texto */}
                              <SemaforoWithTooltip status={m.status} rules={semaforoRules} />
                           </div>
                        </td>
@@ -487,7 +499,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
           </section>
           )}
 
-          {/* 6. Painéis Combinados (Problemas e Riscos) */}
           <div className="grid lg:grid-cols-2 gap-12">
              <div className="space-y-6">
                 <h4 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-tight"><AlertTriangle className="text-amber-500" size={20}/> Problemas e Plano de Ataque</h4>

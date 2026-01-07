@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart } from 'lucide-react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
 
@@ -215,7 +215,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {activeTab === 'add' ? (
               <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
                 
-                {/* Passo 1 */}
+                {/* Passo 1 - Mantido */}
                 {formStep === 1 && (
                   <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">1. Definição Estratégica</h3>
@@ -255,7 +255,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Objetivo</label>
                         <textarea value={report.objetivo} onChange={e => setReport({...report, objetivo: e.target.value})} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white text-sm" rows={2} />
                     </div>
-                    {/* ... outros campos de identificação mantidos (importancia, formula, fonte, recorrencia, resps) ... */}
                      <div className="space-y-2">
                         <label className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Por que é crítico?</label>
                         <textarea value={report.importanciaPrefeito} onChange={e => setReport({...report, importanciaPrefeito: e.target.value})} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white text-sm" rows={2} />
@@ -321,7 +320,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 )}
 
-                {/* Passo 3: Dados & Gráfico (Atualizado com cores e tipo) */}
+                {/* Passo 3: Dados & Gráfico (Mantido) */}
                 {formStep === 3 && (
                   <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">3. Dados e Visualização</h3>
@@ -388,7 +387,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 )}
 
-                {/* Passo 5: Informações do Indicador (Tabela Reformulada) */}
+                {/* Passo 5: Informações do Indicador (Tabela Reformulada com Ícones) */}
                 {formStep === 5 && (
                   <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">5. Informações do Indicador</h3>
@@ -419,11 +418,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                  </select>
                                </td>
                                <td className="p-2">
-                                 <select value={ind.tendencia} onChange={e => { const n = [...report.indicadoresChave]; n[i].tendencia = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
-                                   <option value="up">↑</option>
-                                   <option value="stable">→</option>
-                                   <option value="down">↓</option>
-                                 </select>
+                                 {/* Dropdown com visualização mais clara para o admin */}
+                                 <div className="relative">
+                                     <select value={ind.tendencia} onChange={e => { const n = [...report.indicadoresChave]; n[i].tendencia = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px] appearance-none pl-6 pr-2">
+                                       <option value="up">Crescimento</option>
+                                       <option value="stable">Estável</option>
+                                       <option value="down">Queda</option>
+                                     </select>
+                                     <div className="absolute left-1 top-1.5 pointer-events-none">
+                                        {ind.tendencia === 'up' && <TrendingUp size={12} className="text-emerald-500" />}
+                                        {ind.tendencia === 'down' && <TrendingDown size={12} className="text-red-500" />}
+                                        {ind.tendencia === 'stable' && <Minus size={12} className="text-slate-500" />}
+                                     </div>
+                                 </div>
                                </td>
                                <td className="p-2"><input value={ind.fonte} onChange={e => { const n = [...report.indicadoresChave]; n[i].fonte = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-slate-500 outline-none" placeholder="Fonte" /></td>
                                <td className="p-2 text-center"><button onClick={() => setReport({...report, indicadoresChave: report.indicadoresChave.filter((_, idx) => idx !== i)})} className="text-slate-600 hover:text-red-500"><Trash2 size={14}/></button></td>
@@ -436,7 +443,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 )}
 
-                {/* Passo 6: Metas Prioritárias (Status, Evidencia, Obs) */}
+                {/* Demais Passos mantidos */}
                 {formStep === 6 && (
                   <div className="space-y-6">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">6. Entregas Prioritárias</h3>
@@ -475,8 +482,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                 )}
-
-                {/* Passos 7, 8, 9 mantidos iguais, apenas re-renderização */}
+                
+                {/* Passo 7, 8, 9 mantidos */}
                 {formStep === 7 && (
                   <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">7. Problemas e Decisões</h3>
