@@ -160,6 +160,28 @@ const DashboardView = ({ isLoading }: { isLoading: boolean }) => {
   );
 };
 
+// Componente Helper para Semáforo com Tooltip
+const SemaforoWithTooltip = ({ status, rules, sizeClass = "w-4 h-4" }: { status: 'green' | 'yellow' | 'red', rules: any, sizeClass?: string }) => {
+  const colorClass = status === 'green' ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)]' : status === 'yellow' ? 'bg-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.6)]' : 'bg-red-500 shadow-[0_0_15px_rgba(239,68,68,0.6)]';
+  const text = status === 'green' ? rules?.green : status === 'yellow' ? rules?.yellow : rules?.red;
+
+  return (
+    <div className="group/tooltip relative flex items-center justify-center cursor-help">
+      <div className={`${sizeClass} rounded-full ${colorClass} transition-transform group-hover/tooltip:scale-110`}></div>
+      {text && (
+        <div className="absolute bottom-full mb-3 hidden group-hover/tooltip:block z-50 w-64">
+           <div className="bg-black/90 backdrop-blur-xl text-white text-xs p-3 rounded-xl border border-slate-700 shadow-2xl relative">
+              <span className={`block w-2 h-2 rounded-full mb-1 ${status === 'green' ? 'bg-emerald-500' : status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
+              <p className="font-medium leading-tight">{text}</p>
+              {/* Seta do tooltip */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
+           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boolean }) => {
   const { topicId } = useParams();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
@@ -180,17 +202,23 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {topicPosts.map(post => {
-            const statusColor = post.semaforoGeral === 'yellow' ? 'bg-amber-500 shadow-amber-500/50' : post.semaforoGeral === 'red' ? 'bg-red-500 shadow-red-500/50' : 'bg-emerald-500 shadow-emerald-500/50';
+            // Status Geral
+            const status = post.semaforoGeral || 'green';
+            const rules = post.semaforoRules || { green: 'Normal', yellow: 'Atenção', red: 'Crítico' };
+            
             const progressColor = post.progress >= 100 ? 'bg-emerald-500' : post.progress > 50 ? 'bg-blue-500' : 'bg-amber-500';
 
             return (
           <div key={post.id} className="bg-slate-900/40 border border-slate-800/60 rounded-3xl overflow-hidden hover:border-emerald-500/50 transition-all flex flex-col h-full group relative">
             
-            <div className="p-6 flex justify-between items-start bg-slate-900/80 border-b border-slate-800 relative z-10">
-              <div className="flex items-start gap-4 pr-10">
-                 {/* Semáforo Geral ao lado do título (Pulsante) */}
-                 <div className={`mt-1.5 w-3 h-3 rounded-full shrink-0 shadow-[0_0_10px] animate-pulse ${statusColor}`}></div>
-                 <div>
+            <div className="p-6 flex items-start justify-between bg-slate-900/80 border-b border-slate-800 relative z-10">
+              <div className="flex items-start gap-5 pr-10 w-full">
+                 {/* Semáforo Geral GIGANTE com Tooltip */}
+                 <div className="mt-1 shrink-0">
+                    <SemaforoWithTooltip status={status} rules={rules} sizeClass="w-12 h-12" />
+                 </div>
+                 
+                 <div className="flex-1">
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{post.recorrencia}</span>
                     <h3 className="font-bold text-lg text-slate-100 leading-tight mt-1">{post.chartConfig.title}</h3>
                  </div>
@@ -199,19 +227,18 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
             </div>
 
             <div className="p-6 flex-1 space-y-6">
-              {/* Gráfico Melhorado Visualmente */}
-              <div className="h-56 bg-[#0B1120] rounded-2xl p-4 border border-slate-800/80 shadow-inner overflow-hidden relative group-hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] transition-all">
+              {/* Gráfico Reduzido (h-40) */}
+              <div className="h-40 bg-[#0B1120] rounded-2xl p-4 border border-slate-800/80 shadow-inner overflow-hidden relative group-hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] transition-all">
                 <ChartRenderer config={post.chartConfig} />
               </div>
 
-              {/* Barra de Progresso Melhorada */}
+              {/* Barra de Progresso */}
               <div className="space-y-2">
                 <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase tracking-tighter">
                   <span>Execução da Meta</span>
                   <span className={`${post.progress >= 100 ? 'text-emerald-400' : 'text-slate-200'}`}>{post.progress}%</span>
                 </div>
                 <div className="h-3 bg-slate-950 rounded-full overflow-hidden border border-slate-800/50 shadow-inner relative">
-                  {/* Fundo listrado animado */}
                   <div className={`h-full ${progressColor} transition-all duration-1000 relative`} style={{ width: `${post.progress}%` }}>
                      <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] opacity-50 animate-[pulse_2s_linear_infinite]"></div>
                   </div>
@@ -236,7 +263,7 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
 
 const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => {
   const r = post.report || {} as any;
-  const semaforo = post.semaforoRules || { green: 'Normal', yellow: 'Atenção', red: 'Crítico' };
+  const semaforoRules = post.semaforoRules || { green: 'Normal', yellow: 'Atenção', red: 'Crítico' };
   
   // Ordena histórico do mais recente para o mais antigo
   const history = [...(post.progressHistory || [])].sort((a,b) => b.date - a.date);
@@ -264,7 +291,55 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
 
         <div className="flex-1 overflow-y-auto p-8 md:p-12 space-y-12 custom-scrollbar">
           
-          {/* 1. CARTÃO DE IDENTIDADE */}
+          {/* 1. SEÇÃO DE DADOS DE EVOLUÇÃO E INFORMAÇÕES (MOVIDO PARA O TOPO) */}
+          <section className="space-y-8">
+            <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><TrendingUp className="text-emerald-500" size={24}/> Dados de Evolução e Informações</h3>
+            <div className="grid lg:grid-cols-5 gap-8">
+               <div className="lg:col-span-2 h-80 bg-slate-950/50 rounded-[2rem] p-8 border border-slate-800/80 shadow-2xl">
+                 <ChartRenderer config={post.chartConfig} />
+               </div>
+               <div className="lg:col-span-3 bg-slate-900/20 rounded-[2rem] border border-slate-800/50 overflow-hidden">
+                 <div className="p-5 border-b border-slate-800 bg-slate-950/50">
+                    <h5 className="text-sm font-bold text-white uppercase tracking-wider">Informações do Indicador</h5>
+                 </div>
+                 <table className="w-full text-left text-xs">
+                   <thead className="bg-slate-900/80 text-slate-500 uppercase font-black tracking-widest border-b border-slate-800">
+                     <tr>
+                       <th className="p-5">Variável</th>
+                       <th className="p-5">Resultado</th>
+                       <th className="p-5">Meta</th>
+                       <th className="p-5 text-center">Sinal</th>
+                       <th className="p-5 text-center">Tend.</th>
+                       <th className="p-5">Fonte</th>
+                     </tr>
+                   </thead>
+                   <tbody className="divide-y divide-slate-800/30">
+                     {r.indicadoresChave?.length > 0 ? r.indicadoresChave.map((ind: any, i: number) => (
+                       <tr key={i} className="hover:bg-slate-800/20 transition-all">
+                         <td className="p-5 font-bold text-slate-100">{ind.nome}</td>
+                         <td className="p-5 font-bold text-emerald-400">{ind.resultado}</td>
+                         <td className="p-5 text-slate-400">{ind.meta}</td>
+                         <td className="p-5 text-center">
+                              <div className="flex justify-center">
+                                {/* Usando o componente com Tooltip */}
+                                <SemaforoWithTooltip status={ind.status} rules={semaforoRules} />
+                              </div>
+                         </td>
+                         <td className="p-5 text-center font-bold text-slate-300">
+                            {ind.tendencia === 'up' ? '↑' : ind.tendencia === 'down' ? '↓' : '→'}
+                         </td>
+                         <td className="p-5 text-slate-500 text-[10px]">{ind.fonte}</td>
+                       </tr>
+                     )) : (
+                       <tr><td colSpan={6} className="p-10 text-center text-slate-500 font-bold uppercase tracking-widest">Nenhuma informação adicional</td></tr>
+                     )}
+                   </tbody>
+                 </table>
+               </div>
+            </div>
+          </section>
+
+          {/* 2. CARTÃO DE IDENTIDADE (MOVIDO PARA SEGUNDO) */}
           <div className="grid lg:grid-cols-2 gap-8">
             <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 space-y-6">
                <h3 className="text-xl font-black text-white flex items-center gap-2"><Info className="text-emerald-500"/> Definição Estratégica</h3>
@@ -312,22 +387,22 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                   <div className="space-y-3">
                      <div className="flex items-center gap-3 text-xs text-slate-300">
                         <div className="w-3 h-3 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
-                        <span>{semaforo.green}</span>
+                        <span>{semaforoRules.green}</span>
                      </div>
                      <div className="flex items-center gap-3 text-xs text-slate-300">
                         <div className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.5)]"></div>
-                        <span>{semaforo.yellow}</span>
+                        <span>{semaforoRules.yellow}</span>
                      </div>
                      <div className="flex items-center gap-3 text-xs text-slate-300">
                         <div className="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.5)]"></div>
-                        <span>{semaforo.red}</span>
+                        <span>{semaforoRules.red}</span>
                      </div>
                   </div>
                </div>
             </div>
           </div>
 
-          {/* 2. Resumo Executivo */}
+          {/* 3. Resumo Executivo */}
           <section className="space-y-6">
             <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><FileText className="text-emerald-500" size={24}/> Resumo Executivo do Período</h3>
             <div className="grid md:grid-cols-3 gap-8">
@@ -346,52 +421,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
             </div>
           </section>
 
-          {/* 3. Painel de Indicadores */}
-          <section className="space-y-8">
-            <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><TrendingUp className="text-emerald-500" size={24}/> Dados de Evolução e Informações</h3>
-            <div className="grid lg:grid-cols-5 gap-8">
-               <div className="lg:col-span-2 h-80 bg-slate-950/50 rounded-[2rem] p-8 border border-slate-800/80 shadow-2xl">
-                 <ChartRenderer config={post.chartConfig} />
-               </div>
-               <div className="lg:col-span-3 bg-slate-900/20 rounded-[2rem] border border-slate-800/50 overflow-hidden">
-                 <div className="p-5 border-b border-slate-800 bg-slate-950/50">
-                    <h5 className="text-sm font-bold text-white uppercase tracking-wider">Informações do Indicador</h5>
-                 </div>
-                 <table className="w-full text-left text-xs">
-                   <thead className="bg-slate-900/80 text-slate-500 uppercase font-black tracking-widest border-b border-slate-800">
-                     <tr>
-                       <th className="p-5">Variável</th>
-                       <th className="p-5">Resultado</th>
-                       <th className="p-5">Meta</th>
-                       <th className="p-5 text-center">Sinal</th>
-                       <th className="p-5 text-center">Tend.</th>
-                       <th className="p-5">Fonte</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-800/30">
-                     {r.indicadoresChave?.length > 0 ? r.indicadoresChave.map((ind: any, i: number) => (
-                       <tr key={i} className="hover:bg-slate-800/20 transition-all">
-                         <td className="p-5 font-bold text-slate-100">{ind.nome}</td>
-                         <td className="p-5 font-bold text-emerald-400">{ind.resultado}</td>
-                         <td className="p-5 text-slate-400">{ind.meta}</td>
-                         <td className="p-5 text-center">
-                              <div className={`w-3 h-3 rounded-full mx-auto ${ind.status === 'green' ? 'bg-emerald-500' : ind.status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`}></div>
-                         </td>
-                         <td className="p-5 text-center font-bold text-slate-300">
-                            {ind.tendencia === 'up' ? '↑' : ind.tendencia === 'down' ? '↓' : '→'}
-                         </td>
-                         <td className="p-5 text-slate-500 text-[10px]">{ind.fonte}</td>
-                       </tr>
-                     )) : (
-                       <tr><td colSpan={6} className="p-10 text-center text-slate-500 font-bold uppercase tracking-widest">Nenhuma informação adicional</td></tr>
-                     )}
-                   </tbody>
-                 </table>
-               </div>
-            </div>
-          </section>
-
-          {/* NOVA SEÇÃO: DETALHAMENTO DO PROGRESSO */}
+          {/* 4. NOVA SEÇÃO: DETALHAMENTO DO PROGRESSO */}
           <section className="space-y-6">
             <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><History className="text-purple-500" size={24}/> Detalhamento do Progresso</h3>
             <div className="bg-slate-900/30 p-8 rounded-[2rem] border border-slate-800 space-y-4">
@@ -417,7 +447,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
             </div>
           </section>
 
-          {/* 4. Metas Prioritárias */}
+          {/* 5. Metas Prioritárias */}
           {r.metasPrioritarias?.length > 0 && (
           <section className="space-y-6">
             <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><Target className="text-emerald-500" size={24}/> Metas Prioritárias</h3>
@@ -438,9 +468,10 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                        <td className="p-5 font-bold text-slate-100">{m.meta}</td>
                        <td className="p-5 text-emerald-400 font-bold">{m.prazo}</td>
                        <td className="p-5 text-center">
-                          <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase border ${m.status === 'green' ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10' : m.status === 'yellow' ? 'border-amber-500/30 text-amber-400 bg-amber-500/10' : 'border-red-500/30 text-red-400 bg-red-500/10'}`}>
-                            {m.status === 'green' ? 'Normal' : m.status === 'yellow' ? 'Atenção' : 'Crítico'}
-                          </span>
+                          <div className="flex justify-center">
+                             {/* Agora usa o sinal com tooltip em vez de texto */}
+                             <SemaforoWithTooltip status={m.status} rules={semaforoRules} />
+                          </div>
                        </td>
                        <td className="p-5">
                           {m.evidencia ? (
@@ -456,7 +487,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
           </section>
           )}
 
-          {/* 5, 6, 7 & 8 - Painéis Combinados */}
+          {/* 6. Painéis Combinados (Problemas e Riscos) */}
           <div className="grid lg:grid-cols-2 gap-12">
              <div className="space-y-6">
                 <h4 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-tight"><AlertTriangle className="text-amber-500" size={20}/> Problemas e Plano de Ataque</h4>
@@ -495,7 +526,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
         
         <div className="p-8 border-t border-slate-800 bg-slate-950 flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
            <span>Fonte Oficial: {post.fonteOficial}</span>
-           <span>SGC - Monitoramento de Resultados v1.2</span>
+           <span>SGC - Monitoramento de Resultados v1.3</span>
         </div>
       </div>
     </div>
