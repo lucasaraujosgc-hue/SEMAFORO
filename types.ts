@@ -141,6 +141,7 @@ export interface Post {
   fonteOficial: string;
   recorrencia: string;
   dataAtualizacao: number;
+  lastEditor?: string; // Novo campo para rastrear quem editou
   
   semaforoRules: SemaforoConfig;
   semaforoGeral: 'green' | 'yellow' | 'red'; // Novo campo para o card da lista

@@ -32,10 +32,18 @@ const INITIAL_SEMAFORO: SemaforoConfig = {
   red: 'Matrículas não lançadas ou rejeitadas pelo sistema'
 };
 
+const USERS_MAP: Record<string, string> = {
+  'azul': 'Lucas Araujo',
+  'amarelo': 'Luiz Inacio',
+  'preto': 'Jair Messias',
+  'rosa': 'Michele Janja'
+};
+
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
   isOpen, onClose, posts, onAddPost, onEditPost, onDeletePost
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
   const [activeTab, setActiveTab] = useState<'add' | 'list'>('add');
@@ -75,8 +83,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     e.preventDefault();
     setLoginError('');
     const normalizedPass = passwordInput.trim().toLowerCase();
-    if (normalizedPass === 'azul') setIsAuthenticated(true);
-    else {
+    
+    if (USERS_MAP[normalizedPass]) {
+      setIsAuthenticated(true);
+      setCurrentUser(USERS_MAP[normalizedPass]);
+    } else {
       setLoginError('Senha incorreta.');
       if (navigator.vibrate) navigator.vibrate(200);
     }
@@ -125,7 +136,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         semaforoGeral, // Salva o status geral
         progress, 
         progressHistory, 
-        report: finalReport 
+        report: finalReport,
+        lastEditor: currentUser // Salva quem editou por último
     };
     
     let success;
@@ -182,45 +194,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     const orderA = itemA.order ?? index;
     const orderB = itemB.order ?? targetIndex;
 
-    // Trocamos os valores de order
-    // Para garantir consistência, vamos atribuir a 'order' de B para A e vice-versa, 
-    // ou simplesmente trocar suas posições no array e re-indexar tudo se quiséssemos ser muito estritos.
-    // Mas trocar os valores é mais eficiente.
-    
-    // ATENÇÃO: Se as ordens forem iguais (ex: 0 e 0), a troca não fará efeito na ordenação.
-    // Por isso, é mais seguro atribuir indices sequenciais baseados na posição desejada.
-    // Vamos atribuir targetIndex para A e index para B
-    
-    // Melhor abordagem: Atribuir ordem baseada no array visual
-    newPosts[index] = itemB;
-    newPosts[targetIndex] = itemA;
+    // Se por acaso as ordens forem iguais, forçamos a diferenciação
+    let finalOrderA = orderB;
+    let finalOrderB = orderA;
+    if (finalOrderA === finalOrderB) {
+        finalOrderA = targetIndex;
+        finalOrderB = index;
+    }
 
-    // Agora iteramos e salvamos a ordem para os dois itens trocados (ou para todos, mas vamos focar nos 2)
-    // Para evitar conflitos, é melhor re-salvar a ordem baseada no índice do array
-    
-    const updatePromises = [];
-    
-    // Atualiza itemA (agora na posição targetIndex)
-    const newOrderA = targetIndex;
-    updatePromises.push(onEditPost(itemA.id, itemA.topicId, itemA.description, itemA.chartConfig, {
+    // Atualização Sequencial para garantir integridade do State do React e DB
+    await onEditPost(itemA.id, itemA.topicId, itemA.description, itemA.chartConfig, {
         ...itemA, // preserva extraData existente
         report: itemA.report,
         progress: itemA.progress,
         progressHistory: itemA.progressHistory,
-        order: newOrderA // Nova ordem
-    }));
+        lastEditor: currentUser, // Registra quem mudou a ordem
+        order: finalOrderA 
+    });
 
-    // Atualiza itemB (agora na posição index)
-    const newOrderB = index;
-    updatePromises.push(onEditPost(itemB.id, itemB.topicId, itemB.description, itemB.chartConfig, {
+    await onEditPost(itemB.id, itemB.topicId, itemB.description, itemB.chartConfig, {
         ...itemB,
         report: itemB.report,
         progress: itemB.progress,
         progressHistory: itemB.progressHistory,
-        order: newOrderB // Nova ordem
-    }));
-
-    await Promise.all(updatePromises);
+        lastEditor: currentUser, // Registra quem mudou a ordem
+        order: finalOrderB 
+    });
   };
 
   if (!isAuthenticated) {
@@ -248,6 +247,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         <div className="p-6 border-b border-slate-800 bg-slate-900/50 flex justify-between items-center">
           <div className="flex items-center gap-8">
             <h2 className="text-xl font-black text-white uppercase tracking-tighter flex items-center gap-2"><ClipboardList className="text-emerald-500" /> Sala de Lançamento</h2>
+            <div className="flex flex-col">
+                 <span className="text-[10px] text-slate-500 font-bold uppercase">Logado como:</span>
+                 <span className="text-xs text-emerald-400 font-black uppercase">{currentUser}</span>
+            </div>
             <div className="flex bg-slate-800/50 p-1.5 rounded-2xl">
               <button onClick={() => setActiveTab('add')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'add' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}>{editingPostId ? 'Editar' : 'Novo'}</button>
               <button onClick={() => setActiveTab('list')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'list' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}>Catálogo</button>
@@ -264,7 +267,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 { id: 2, label: '2. Semáforo', icon: AlertOctagon },
                 { id: 3, label: '3. Dados & Gráfico', icon: TrendingUp },
                 { id: 4, label: '4. Resumo Exec.', icon: FileText },
-                { id: 5, label: '5. Informações', icon: ListChecks }, // Nome alterado
+                { id: 5, label: '5. Informações', icon: ListChecks }, 
                 { id: 6, label: '6. Metas Priorit.', icon: Target },
                 { id: 7, label: '7. Prob. & Decisões', icon: AlertTriangle },
                 { id: 8, label: '8. Riscos', icon: ShieldAlert },
@@ -356,9 +359,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                 )}
-                
-                {/* Steps 2, 3, 4, 5, 6, 7 Renderizados como anteriormente (omitidos para focar na mudança do 8 e lista) */}
-                {/* ... (Conteúdo repetido dos steps 2 a 7) ... */}
+                {/* ... Steps 2-9 Mantidos iguais, apenas renderizados condicionalmente ... */}
+                {/* Omitindo código repetitivo dos steps 2 a 9 para focar nas mudanças de lógica. A estrutura permanece a mesma. */}
+                {/* ... */}
                 {formStep === 2 && (
                     <div className="space-y-8">
                         <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">2. Regras de Calibração</h3>
@@ -586,8 +589,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                 )}
-                
-                {/* Passo 8 Modificado com Input para "Outros" */}
                 {formStep === 8 && (
                    <div className="space-y-10">
                       <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">8. Riscos</h3>
@@ -597,14 +598,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                {['Fiscal', 'Jurídico', 'Operacional', 'Político', 'Reputacional'].map(t => (
                                  <button key={t} onClick={() => { const n = report.riscos.tipos.includes(t) ? report.riscos.tipos.filter(x => x !== t) : [...report.riscos.tipos, t]; setReport({...report, riscos: {...report.riscos, tipos: n}}); }} className={`px-5 py-3 rounded-2xl text-[10px] font-black uppercase border transition-all ${report.riscos.tipos.includes(t) ? 'bg-red-600 border-red-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-600'}`}>{t}</button>
                                ))}
-                               {/* Exibir itens personalizados adicionados */}
                                {report.riscos.tipos.filter(t => !['Fiscal', 'Jurídico', 'Operacional', 'Político', 'Reputacional'].includes(t)).map(t => (
                                    <button key={t} onClick={() => { const n = report.riscos.tipos.filter(x => x !== t); setReport({...report, riscos: {...report.riscos, tipos: n}}); }} className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase border bg-red-600 border-red-500 text-white flex items-center gap-2">
                                        {t} <X size={12}/>
                                    </button>
                                ))}
 
-                               {/* Botão/Input para adicionar novo */}
                                {!isAddingCustomRisk ? (
                                    <button onClick={() => setIsAddingCustomRisk(true)} className="px-5 py-3 rounded-2xl text-[10px] font-black uppercase border border-slate-700 bg-slate-900 text-slate-400 hover:bg-slate-800 transition-all flex items-center gap-2">
                                        Outros +
@@ -629,8 +628,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       </div>
                    </div>
                 )}
-
-                {/* Passo 9 Mantido */}
                 {formStep === 9 && (
                    <div className="space-y-8 text-center max-w-xl mx-auto">
                       <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">9. Atualizar Evolução</h3>
@@ -657,7 +654,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
               </div>
             ) : (
-              // Modo Lista (Catálogo) - Atualizado com Reordenação
+              // Modo Lista (Catálogo)
               <div className="space-y-6">
                 <div className="flex justify-between items-end mb-6 px-4">
                   <h3 className="text-2xl font-black text-white">Catálogo</h3>
@@ -669,7 +666,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                       <div className="flex items-center gap-6">
                         <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center border border-slate-800 group-hover:scale-105 transition-all relative">
                           <span className="text-[10px] font-black text-slate-600">{post.topicId.substring(0,3).toUpperCase()}</span>
-                          {/* Dot do Semáforo na Lista */}
                           <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${post.semaforoGeral === 'yellow' ? 'bg-amber-500' : post.semaforoGeral === 'red' ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
                         </div>
                         <div>
@@ -678,7 +674,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        {/* Botões de Reordenação */}
                         <div className="flex flex-col gap-1 mr-4 border-r border-slate-800 pr-4">
                             <button 
                                 onClick={() => handleMovePost(index, 'up')} 

@@ -274,8 +274,8 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
             </div>
 
             <div className="p-6 flex-1 space-y-6">
-              {/* Gráfico Reduzido, mas com mais altura (h-52) */}
-              <div className="h-52 bg-[#0B1120] rounded-2xl p-4 border border-slate-800/80 shadow-inner overflow-hidden relative group-hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] transition-all">
+              {/* Gráfico Reduzido, AUMENTADO DE h-52 PARA h-64 para evitar cortes */}
+              <div className="h-64 bg-[#0B1120] rounded-2xl p-4 border border-slate-800/80 shadow-inner overflow-hidden relative group-hover:shadow-[inset_0_0_20px_rgba(16,185,129,0.05)] transition-all">
                 <ChartRenderer config={post.chartConfig} />
               </div>
 
@@ -551,7 +551,10 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
         
         <div className="p-8 border-t border-slate-800 bg-slate-950 flex justify-between items-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
            <span>Fonte Oficial: {post.fonteOficial}</span>
-           <span>SGC - Monitoramento de Resultados v1.3</span>
+           <div className="flex gap-4">
+                {post.lastEditor && <span className="text-emerald-400">{post.lastEditor}</span>}
+                <span>SGC - Monitoramento de Resultados v1.3</span>
+           </div>
         </div>
       </div>
     </div>
