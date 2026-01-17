@@ -39,7 +39,7 @@ export const TOPICS: TopicDef[] = [
   },
   {
     id: TopicId.AGRICULTURA,
-    label: 'Agricultura',
+    label: 'Agricultura e Meio Ambiente',
     iconName: 'Sprout',
     color: 'bg-green-600', // Verde
     description: 'Produção rural, apoio ao agricultor e safras.',
