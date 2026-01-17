@@ -192,14 +192,14 @@ const SemaforoWithTooltip = ({ status, rules, sizeClass = "w-4 h-4" }: { status:
   const text = status === 'green' ? rules?.green : status === 'yellow' ? rules?.yellow : rules?.red;
 
   return (
-    <div className="group/tooltip relative flex items-center justify-center cursor-help">
+    <div className="group/tooltip relative flex items-center justify-center cursor-help z-50">
       <div className={`${sizeClass} rounded-full ${colorClass} transition-transform group-hover/tooltip:scale-110`}></div>
       {text && (
-        <div className="absolute bottom-full mb-3 hidden group-hover/tooltip:block z-50 w-64">
+        <div className="absolute bottom-full mb-3 hidden group-hover/tooltip:block z-[100] w-64 -left-2">
            <div className="bg-black/90 backdrop-blur-xl text-white text-xs p-3 rounded-xl border border-slate-700 shadow-2xl relative">
               <span className={`block w-2 h-2 rounded-full mb-1 ${status === 'green' ? 'bg-emerald-500' : status === 'yellow' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
               <p className="font-medium leading-tight">{text}</p>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
+              <div className="absolute top-full left-4 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-black/90"></div>
            </div>
         </div>
       )}
@@ -256,9 +256,10 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
             const progressColor = post.progress >= 100 ? 'bg-emerald-500' : post.progress > 50 ? 'bg-blue-500' : 'bg-amber-500';
 
             return (
-          <div key={post.id} className="bg-slate-900/40 border border-slate-800/60 rounded-3xl overflow-hidden hover:border-emerald-500/50 transition-all flex flex-col h-full group relative">
+          // Removido overflow-hidden e adicionado rounded-t-3xl no header interno para permitir tooltip
+          <div key={post.id} className="bg-slate-900/40 border border-slate-800/60 rounded-3xl hover:border-emerald-500/50 hover:z-20 transition-all flex flex-col h-full group relative">
             
-            <div className="p-6 flex items-start justify-between bg-slate-900/80 border-b border-slate-800 relative z-10">
+            <div className="p-6 flex items-start justify-between bg-slate-900/80 border-b border-slate-800 relative z-10 rounded-t-3xl">
               <div className="flex items-start gap-5 pr-10 w-full">
                  <div className="mt-1 shrink-0">
                     <SemaforoWithTooltip status={status} rules={rules} sizeClass="w-12 h-12" />
@@ -411,20 +412,6 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
             </div>
 
             <div className="space-y-6">
-               <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 space-y-4">
-                  <h3 className="text-xl font-black text-white flex items-center gap-2"><User className="text-blue-500"/> Responsáveis</h3>
-                  <div className="grid grid-cols-2 gap-4">
-                     <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800/50">
-                        <span className="text-[10px] font-black text-slate-500 uppercase block mb-1">Político</span>
-                        <p className="text-sm font-bold text-white">{post.responsavel || 'N/A'}</p>
-                     </div>
-                     <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800/50">
-                        <span className="text-[10px] font-black text-slate-500 uppercase block mb-1">Técnico</span>
-                        <p className="text-sm font-bold text-white">{r.responsavelTecnico || r.pontoFocal?.nome || 'N/A'}</p>
-                     </div>
-                  </div>
-               </div>
-
                <div className="bg-slate-900/40 p-8 rounded-[2rem] border border-slate-800 space-y-4">
                   <h3 className="text-xl font-black text-white flex items-center gap-2"><AlertCircle className="text-purple-500"/> Calibragem do Semáforo</h3>
                   <div className="space-y-3">
