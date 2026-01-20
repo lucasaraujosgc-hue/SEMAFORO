@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, ArrowUp, ArrowDown } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
 
@@ -49,6 +49,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [activeTab, setActiveTab] = useState<'add' | 'list'>('add');
   const [formStep, setFormStep] = useState<number>(1);
   const [editingPostId, setEditingPostId] = useState<string | null>(null);
+
+  // Filter State
+  const [filterTopic, setFilterTopic] = useState<string>('all');
+
+  // Drag and Drop State
+  const dragItem = useRef<number | null>(null);
+  const dragOverItem = useRef<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -178,49 +186,62 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const handleMovePost = async (index: number, direction: 'up' | 'down') => {
-    // A lista 'posts' recebida já está ordenada. 
-    // Vamos clonar para manipular
-    const newPosts = [...posts];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  // Drag and Drop Logic
+  const handleSort = async () => {
+    // Só permite ordenar se não estiver filtrado, para evitar confusão de índices
+    if (filterTopic !== 'all') return;
 
-    if (targetIndex < 0 || targetIndex >= newPosts.length) return;
+    if (dragItem.current === null || dragOverItem.current === null) return;
+    
+    const draggedIdx = dragItem.current;
+    const overIdx = dragOverItem.current;
+    
+    if (draggedIdx === overIdx) return;
 
-    // Troca
-    const itemA = newPosts[index];
-    const itemB = newPosts[targetIndex];
+    // Clona o array original
+    const _posts = [...posts];
+    
+    // Remove o item arrastado
+    const draggedItemContent = _posts.splice(draggedIdx, 1)[0];
+    
+    // Insere na nova posição
+    _posts.splice(overIdx, 0, draggedItemContent);
 
-    // Se eles não têm ordem definida, assumimos o index atual
-    const orderA = itemA.order ?? index;
-    const orderB = itemB.order ?? targetIndex;
+    // Reseta refs
+    dragItem.current = null;
+    dragOverItem.current = null;
+    setIsDragging(false);
 
-    // Se por acaso as ordens forem iguais, forçamos a diferenciação
-    let finalOrderA = orderB;
-    let finalOrderB = orderA;
-    if (finalOrderA === finalOrderB) {
-        finalOrderA = targetIndex;
-        finalOrderB = index;
+    // Atualiza o backend
+    // Percorremos o novo array. Se a ordem (index) for diferente da ordem salva no objeto, atualizamos.
+    // Isso pode gerar multiplos requests, mas garante consistência.
+    
+    const updates = [];
+    for (let i = 0; i < _posts.length; i++) {
+        const p = _posts[i];
+        if (p.order !== i) {
+            updates.push({
+                ...p,
+                order: i,
+                lastEditor: currentUser // Marca quem reordenou
+            });
+        }
     }
 
-    // Atualização Sequencial para garantir integridade do State do React e DB
-    await onEditPost(itemA.id, itemA.topicId, itemA.description, itemA.chartConfig, {
-        ...itemA, // preserva extraData existente
-        report: itemA.report,
-        progress: itemA.progress,
-        progressHistory: itemA.progressHistory,
-        lastEditor: currentUser, // Registra quem mudou a ordem
-        order: finalOrderA 
-    });
-
-    await onEditPost(itemB.id, itemB.topicId, itemB.description, itemB.chartConfig, {
-        ...itemB,
-        report: itemB.report,
-        progress: itemB.progress,
-        progressHistory: itemB.progressHistory,
-        lastEditor: currentUser, // Registra quem mudou a ordem
-        order: finalOrderB 
-    });
+    // Executa updates em série para não sobrecarregar
+    for (const updatedPost of updates) {
+        await onEditPost(updatedPost.id, updatedPost.topicId, updatedPost.description, updatedPost.chartConfig, {
+            ...updatedPost,
+            report: updatedPost.report,
+            progress: updatedPost.progress,
+            progressHistory: updatedPost.progressHistory,
+            lastEditor: updatedPost.lastEditor,
+            order: updatedPost.order
+        });
+    }
   };
+
+  const filteredPosts = posts.filter(p => filterTopic === 'all' || p.topicId === filterTopic);
 
   if (!isAuthenticated) {
     return (
@@ -288,9 +309,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             {activeTab === 'add' ? (
               <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
                 
-                {/* Steps 1-7 (Mantidos conforme código anterior, mas omitidos para brevidade onde não houve mudança lógica, apenas renderização) */}
-                
-                {/* Passo 1 - Mantido */}
                 {formStep === 1 && (
                   <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">1. Definição Estratégica</h3>
@@ -359,9 +377,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                   </div>
                 )}
-                {/* ... Steps 2-9 Mantidos iguais, apenas renderizados condicionalmente ... */}
-                {/* Omitindo código repetitivo dos steps 2 a 9 para focar nas mudanças de lógica. A estrutura permanece a mesma. */}
-                {/* ... */}
+                
                 {formStep === 2 && (
                     <div className="space-y-8">
                         <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">2. Regras de Calibração</h3>
@@ -657,13 +673,50 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               // Modo Lista (Catálogo)
               <div className="space-y-6">
                 <div className="flex justify-between items-end mb-6 px-4">
-                  <h3 className="text-2xl font-black text-white">Catálogo</h3>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{posts.length} Cadastrados</p>
+                    <div>
+                         <h3 className="text-2xl font-black text-white">Catálogo</h3>
+                         <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{filteredPosts.length} Cadastrados</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <select 
+                                value={filterTopic} 
+                                onChange={e => setFilterTopic(e.target.value)}
+                                className="appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-10 pr-8 py-2.5 rounded-xl border border-slate-700 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-colors"
+                            >
+                                <option value="all">Todas as Áreas</option>
+                                {TOPICS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                            </select>
+                            <Filter className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14}/>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none border-t-4 border-l-4 border-r-4 border-transparent border-t-slate-500"></div>
+                        </div>
+                    </div>
                 </div>
+                
+                {filterTopic !== 'all' && (
+                    <div className="px-4 py-2 mb-4 mx-4 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2 text-[10px] text-amber-400 font-bold uppercase tracking-widest">
+                        <Info size={14} /> Para reordenar os itens, selecione "Todas as Áreas" no filtro.
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 gap-4">
-                  {posts.map((post, index) => (
-                    <div key={post.id} className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800 flex items-center justify-between group hover:border-emerald-500/30 transition-all">
+                  {filteredPosts.map((post, index) => (
+                    <div 
+                        key={post.id} 
+                        className={`bg-slate-900/40 p-6 rounded-3xl border flex items-center justify-between group transition-all ${isDragging ? 'opacity-50 border-dashed border-slate-700' : 'border-slate-800 hover:border-emerald-500/30'}`}
+                        draggable={filterTopic === 'all'}
+                        onDragStart={() => { dragItem.current = index; setIsDragging(true); }}
+                        onDragEnter={() => { dragOverItem.current = index; }}
+                        onDragEnd={handleSort}
+                        onDragOver={(e) => e.preventDefault()}
+                    >
                       <div className="flex items-center gap-6">
+                         {/* Grip Handle for Dragging */}
+                         <div className={`p-2 rounded cursor-grab active:cursor-grabbing text-slate-600 hover:text-white ${filterTopic !== 'all' ? 'opacity-20 cursor-not-allowed' : ''}`}>
+                             <GripVertical size={20} />
+                         </div>
+
                         <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center border border-slate-800 group-hover:scale-105 transition-all relative">
                           <span className="text-[10px] font-black text-slate-600">{post.topicId.substring(0,3).toUpperCase()}</span>
                           <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${post.semaforoGeral === 'yellow' ? 'bg-amber-500' : post.semaforoGeral === 'red' ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
@@ -674,23 +727,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                       </div>
                       <div className="flex items-center gap-4">
-                        <div className="flex flex-col gap-1 mr-4 border-r border-slate-800 pr-4">
-                            <button 
-                                onClick={() => handleMovePost(index, 'up')} 
-                                disabled={index === 0}
-                                className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-emerald-400 disabled:opacity-20 disabled:hover:text-slate-500"
-                            >
-                                <ArrowUp size={16} />
-                            </button>
-                            <button 
-                                onClick={() => handleMovePost(index, 'down')} 
-                                disabled={index === posts.length - 1}
-                                className="p-1 hover:bg-slate-800 rounded text-slate-500 hover:text-emerald-400 disabled:opacity-20 disabled:hover:text-slate-500"
-                            >
-                                <ArrowDown size={16} />
-                            </button>
-                        </div>
-
                         <button onClick={() => handleEditClick(post)} className="p-3 bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white rounded-xl transition-all"><Pencil size={18}/></button>
                         <button onClick={() => onDeletePost(post.id)} className="p-3 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white rounded-xl transition-all"><Trash2 size={18}/></button>
                       </div>
