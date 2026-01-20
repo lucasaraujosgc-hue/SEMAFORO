@@ -186,11 +186,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
+  const filteredPosts = posts.filter(p => filterTopic === 'all' || p.topicId === filterTopic);
+
   // Drag and Drop Logic
   const handleSort = async () => {
-    // Só permite ordenar se não estiver filtrado, para evitar confusão de índices
-    if (filterTopic !== 'all') return;
-
     if (dragItem.current === null || dragOverItem.current === null) return;
     
     const draggedIdx = dragItem.current;
@@ -198,37 +197,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     
     if (draggedIdx === overIdx) return;
 
-    // Clona o array original
-    const _posts = [...posts];
-    
-    // Remove o item arrastado
-    const draggedItemContent = _posts.splice(draggedIdx, 1)[0];
-    
-    // Insere na nova posição
-    _posts.splice(overIdx, 0, draggedItemContent);
-
-    // Reseta refs
+    // Reseta estado visual imediatamente
     dragItem.current = null;
     dragOverItem.current = null;
     setIsDragging(false);
 
-    // Atualiza o backend
-    // Percorremos o novo array. Se a ordem (index) for diferente da ordem salva no objeto, atualizamos.
-    // Isso pode gerar multiplos requests, mas garante consistência.
-    
-    const updates = [];
-    for (let i = 0; i < _posts.length; i++) {
-        const p = _posts[i];
-        if (p.order !== i) {
-            updates.push({
-                ...p,
-                order: i,
-                lastEditor: currentUser // Marca quem reordenou
-            });
+    // ESTRATÉGIA DE ORDENAÇÃO
+    let updates: Post[] = [];
+
+    if (filterTopic === 'all') {
+        // MODO GLOBAL: Reordena a lista completa e renumera índices sequencialmente (0, 1, 2...)
+        const _posts = [...posts];
+        const draggedContent = _posts.splice(draggedIdx, 1)[0];
+        _posts.splice(overIdx, 0, draggedContent);
+
+        for (let i = 0; i < _posts.length; i++) {
+            if (_posts[i].order !== i) {
+                updates.push({ ..._posts[i], order: i, lastEditor: currentUser });
+            }
+        }
+    } else {
+        // MODO FILTRADO: Estratégia "Troca de Slots"
+        // 1. Pega os itens visíveis
+        const currentVisible = [...filteredPosts];
+        
+        // 2. Coleta os números de ordem ("slots") disponíveis neste grupo.
+        // Assumimos que filteredPosts já vem ordenado do pai (App.tsx), então map() gera lista ordenada.
+        // Se houver orders nulos/zero duplicados, o comportamento pode ser instável, mas tentamos preservar a intenção.
+        const availableSlots = currentVisible.map(p => p.order !== undefined ? p.order : 0);
+        
+        // 3. Aplica a mudança visual na lista
+        const draggedContent = currentVisible.splice(draggedIdx, 1)[0];
+        currentVisible.splice(overIdx, 0, draggedContent);
+        
+        // 4. Atribui os slots antigos à nova sequência
+        // O primeiro item da nova lista visual ganha o menor número de ordem disponível, e assim por diante.
+        for (let i = 0; i < currentVisible.length; i++) {
+            const p = currentVisible[i];
+            const targetOrder = availableSlots[i];
+            
+            if (p.order !== targetOrder) {
+                updates.push({ ...p, order: targetOrder, lastEditor: currentUser });
+            }
         }
     }
 
-    // Executa updates em série para não sobrecarregar
+    // Executa updates em série para garantir integridade
     for (const updatedPost of updates) {
         await onEditPost(updatedPost.id, updatedPost.topicId, updatedPost.description, updatedPost.chartConfig, {
             ...updatedPost,
@@ -240,8 +254,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         });
     }
   };
-
-  const filteredPosts = posts.filter(p => filterTopic === 'all' || p.topicId === filterTopic);
 
   if (!isAuthenticated) {
     return (
@@ -308,6 +320,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar">
             {activeTab === 'add' ? (
               <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
+                {/* ... (Conteúdo dos steps de 1 a 9 mantido igual, apenas omitido para brevidade) ... */}
                 
                 {formStep === 1 && (
                   <div className="space-y-8">
@@ -694,18 +707,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                 </div>
                 
-                {filterTopic !== 'all' && (
-                    <div className="px-4 py-2 mb-4 mx-4 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-2 text-[10px] text-amber-400 font-bold uppercase tracking-widest">
-                        <Info size={14} /> Para reordenar os itens, selecione "Todas as Áreas" no filtro.
-                    </div>
-                )}
-
                 <div className="grid grid-cols-1 gap-4">
                   {filteredPosts.map((post, index) => (
                     <div 
                         key={post.id} 
                         className={`bg-slate-900/40 p-6 rounded-3xl border flex items-center justify-between group transition-all ${isDragging ? 'opacity-50 border-dashed border-slate-700' : 'border-slate-800 hover:border-emerald-500/30'}`}
-                        draggable={filterTopic === 'all'}
+                        draggable
                         onDragStart={() => { dragItem.current = index; setIsDragging(true); }}
                         onDragEnter={() => { dragOverItem.current = index; }}
                         onDragEnd={handleSort}
@@ -713,7 +720,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     >
                       <div className="flex items-center gap-6">
                          {/* Grip Handle for Dragging */}
-                         <div className={`p-2 rounded cursor-grab active:cursor-grabbing text-slate-600 hover:text-white ${filterTopic !== 'all' ? 'opacity-20 cursor-not-allowed' : ''}`}>
+                         <div className="p-2 rounded cursor-grab active:cursor-grabbing text-slate-600 hover:text-white">
                              <GripVertical size={20} />
                          </div>
 
