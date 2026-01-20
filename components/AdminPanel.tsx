@@ -33,10 +33,10 @@ const INITIAL_SEMAFORO: SemaforoConfig = {
 };
 
 const USERS_MAP: Record<string, string> = {
-  'azul': 'Lucas Araujo',
-  'amarelo': 'Luiz Inacio',
-  'preto': 'Jair Messias',
-  'rosa': 'Michele Janja'
+  'azul': 'Lucas Araujo dos Santos',
+  'amarelo': 'Gilda Natali Mendes dos Santos Lemos',
+  'preto': 'Ana Paula Daltro Oliveira',
+  'rosa': 'Maiara dos Santos Maia'
 };
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
