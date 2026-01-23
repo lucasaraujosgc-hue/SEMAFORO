@@ -104,35 +104,29 @@ export interface ReportSection {
   anexos: string;
 }
 
-export interface ChartSeriesDef {
-  dataKey: string;
-  name: string;
-  type: 'bar' | 'line' | 'area';
-  color: string;
-  yAxisId: 'left' | 'right';
-}
-
 export interface ExternalChartData {
-  labels?: string[];
+  labels: string[];
   series: Array<{
     name?: string;
     label?: string;
-    data: number[];
+    data: any[];
+    type?: 'bar' | 'line';
     color?: string;
-    type?: 'bar' | 'line' | 'area';
     yAxis?: 'left' | 'right';
   }>;
-}
-
-export interface ChartConfig {
-  type: 'composed' | 'bar' | 'line' | 'pie'; // composed é o novo padrão para mistos
-  title: string;
-  data: any; // Array de objetos { label, [dataKey]: value } OR ExternalChartData
-  series: ChartSeriesDef[]; // Definição das colunas
   yAxes?: {
     left?: { title?: string };
     right?: { title?: string };
   };
+}
+
+export interface ChartConfig {
+  type: 'bar' | 'line' | 'pie';
+  title: string;
+  data?: any; // Array de objetos { label, value, color }
+  series?: any[];
+  color?: string; // Cor padrão
+  options?: any;
 }
 
 export interface Post {

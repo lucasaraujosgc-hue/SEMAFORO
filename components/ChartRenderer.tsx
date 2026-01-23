@@ -24,30 +24,11 @@ interface ChartRendererProps {
 
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'];
 
-const formatNumberPTBR = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2, notation: value > 1000000 ? 'compact' : 'standard' }).format(value);
-};
-
-const formatCurrencyTooltip = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', { style: 'decimal', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
-};
-
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
-  const { type } = config;
+  const { type, color: mainColor } = config;
 
-  const { processedData, dataKeys, isComplex, complexConfig, seriesConfig } = useMemo(() => {
+  const { processedData, dataKeys, isComplex, complexConfig } = useMemo(() => {
     try {
-      // NOVA LÓGICA: Suporte explícito a "series" (Composed Chart do AdminPanel)
-      if (config.series && Array.isArray(config.series)) {
-           return {
-               processedData: config.data || [],
-               dataKeys: config.series.map(s => s.dataKey),
-               isComplex: false,
-               seriesConfig: config.series
-           }
-      }
-
-      // LÓGICA LEGADA (Para manter compatibilidade com dados antigos/json manual)
       // CASO 0: Formato Complexo
       if (config.data && !Array.isArray(config.data) && typeof config.data === 'object') {
         const extData = config.data as any; 
@@ -115,14 +96,14 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       }
 
       // CASO 2: Formato "Series" (Antigo)
-      if (config.series && Array.isArray(config.series) && !config.series[0].dataKey) { // Check if it's not the NEW series format
+      if (config.series && Array.isArray(config.series)) {
         const allLabels = new Set<string>();
-        config.series.forEach((s:any) => s.data.forEach((d:any) => allLabels.add(d.label)));
+        config.series.forEach(s => s.data.forEach(d => allLabels.add(d.label)));
         
         const normalized = Array.from(allLabels).map(label => {
           const item: any = { label };
-          config.series?.forEach((s:any) => {
-            const point = s.data.find((d:any) => d.label === label);
+          config.series?.forEach(s => {
+            const point = s.data.find(d => d.label === label);
             if (point) {
               item[s.name] = point.value;
             }
@@ -132,23 +113,22 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
 
         return {
           processedData: normalized,
-          dataKeys: config.series.map((s:any) => s.name),
+          dataKeys: config.series.map(s => s.name),
           isComplex: false
         };
       }
 
-      // CASO 3: Formato "Flat" (Simples/Legado do AdminPanel antigo)
+      // CASO 3: Formato "Flat" (Simples)
       if (config.data && Array.isArray(config.data) && config.data.length > 0) {
         const first = config.data[0];
-        // Se tem 'label' e 'Valor' (formato antigo padrão)
-        if (first.label !== undefined) {
-             // Detecta chaves numéricas
-             const keys = Object.keys(first).filter(k => k !== 'label' && k !== 'city' && k !== 'color' && typeof first[k] === 'number');
-             
-             // Se não achou chaves numéricas mas tem 'Valor' (caso do builder antigo)
-             if (keys.length === 0 && first['Valor'] !== undefined) keys.push('Valor');
+        if (!('values' in first) && !('series' in first)) {
+          const keys = Object.keys(first).filter(k => k !== 'label' && k !== 'city' && k !== 'color');
+          const normalized = config.data.map((item: any) => ({
+            ...item,
+            label: item.label || item.city || 'Unknown'
+          }));
 
-             return { processedData: config.data, dataKeys: keys, isComplex: false };
+          return { processedData: normalized, dataKeys: keys, isComplex: false };
         }
       }
 
@@ -169,75 +149,47 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       );
     }
 
-    const commonMargin = { top: 40, right: 20, bottom: 5, left: 10 };
+    // Aumentamos a margem superior para 40px para evitar cortes
+    const commonMargin = { top: 40, right: 20, bottom: 5, left: 0 };
+    
+    // Função para calcular domínio com folga de 10% no topo
     const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.1)];
 
-    // RENDERIZADOR PRINCIPAL (Composed/Misto)
-    if (seriesConfig || type === 'composed' || (isComplex && complexConfig)) {
-        // Se vier do novo AdminPanel (seriesConfig) ou JSON complexo
-        const seriesToRender = seriesConfig || (complexConfig?.series ? complexConfig.series.map((s, i) => ({
-            dataKey: s.name || s.label || `series_${i}`,
-            name: s.name || s.label,
-            color: s.color,
-            type: s.type || 'bar',
-            yAxisId: s.yAxis === 'right' ? 'right' : 'left'
-        })) : dataKeys.map(k => ({ dataKey: k, name: k, type: 'bar', color: '#10b981', yAxisId: 'left' })));
-
-        return (
-            <ComposedChart data={processedData} margin={commonMargin}>
-              <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" scale="point" padding={{ left: 20, right: 20 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
-              
-              <YAxis 
-                yAxisId="left" 
-                orientation="left" 
-                stroke="#94a3b8" 
-                fontSize={11} 
-                tickLine={false} 
-                domain={domainWithPadding}
-                tickFormatter={formatNumberPTBR} 
-              />
-              <YAxis 
-                yAxisId="right" 
-                orientation="right" 
-                stroke="#94a3b8" 
-                fontSize={11} 
-                tickLine={false} 
-                domain={domainWithPadding} 
-                hide={!seriesToRender.some((s:any) => s.yAxisId === 'right')}
-                tickFormatter={formatNumberPTBR}
-              />
-              
-              <Tooltip 
-                formatter={(value: number) => [formatCurrencyTooltip(value), '']}
-                contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} 
-              />
-              <Legend wrapperStyle={{ paddingTop: '10px' }} />
-              
-              {seriesToRender.map((serie: any, index: number) => {
-                const color = serie.color || COLORS[index % COLORS.length];
-                if (serie.type === 'line') {
-                  return <Line key={serie.dataKey} type="monotone" dataKey={serie.dataKey} name={serie.name} stroke={color} strokeWidth={3} yAxisId={serie.yAxisId || 'left'} dot={{ r: 4 }} activeDot={{ r: 6 }} />;
-                } else {
-                  return <Bar key={serie.dataKey} dataKey={serie.dataKey} name={serie.name} fill={color} yAxisId={serie.yAxisId || 'left'} radius={[4, 4, 0, 0]} barSize={40} />;
-                }
-              })}
-            </ComposedChart>
-        );
+    if (isComplex && complexConfig && complexConfig.series) {
+      return (
+        <ComposedChart data={processedData} margin={commonMargin}>
+          <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="label" scale="point" padding={{ left: 10, right: 10 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
+          <YAxis yAxisId="left" orientation="left" stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} label={complexConfig.yAxes?.left?.title ? { value: complexConfig.yAxes.left.title, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 } : undefined} />
+          <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} tickLine={false} hide={!complexConfig.yAxes?.right} domain={domainWithPadding} label={complexConfig.yAxes?.right?.title ? { value: complexConfig.yAxes.right.title, angle: 90, position: 'insideRight', fill: '#94a3b8', fontSize: 10 } : undefined} />
+          <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+          <Legend wrapperStyle={{ paddingTop: '10px' }} />
+          {complexConfig.series.map((serie, index) => {
+            if (!serie) return null; 
+            const serieColor = serie.color || COLORS[index % COLORS.length];
+            const yAxisId = serie.yAxis === 'right' ? 'right' : 'left';
+            const dataKey = serie.name || serie.label || `series_${index}`;
+            if (serie.type === 'line') {
+              return <Line key={dataKey} type="monotone" dataKey={dataKey} name={dataKey} stroke={serieColor} strokeWidth={3} yAxisId={yAxisId} dot={{ r: 4 }} activeDot={{ r: 6 }} />;
+            } else {
+              return <Bar key={dataKey} dataKey={dataKey} name={dataKey} fill={serieColor} yAxisId={yAxisId} radius={[4, 4, 0, 0]} barSize={40} />;
+            }
+          })}
+        </ComposedChart>
+      );
     }
 
-    // Fallback para tipos simples (Pie/Line puro sem config avançada)
     switch (type) {
       case 'line':
         return (
           <LineChart data={processedData} margin={commonMargin}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatNumberPTBR} />
-            <Tooltip formatter={(value: number) => [formatCurrencyTooltip(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
+            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} />
+            <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
-              <Line key={key} type="monotone" dataKey={key} name={key} stroke={COLORS[index % COLORS.length]} strokeWidth={3} activeDot={{ r: 6 }} />
+              <Line key={key} type="monotone" dataKey={key} name={key === 'value' ? 'Valor' : key} stroke={COLORS[index % COLORS.length]} strokeWidth={3} activeDot={{ r: 6 }} />
             ))}
           </LineChart>
         );
@@ -268,23 +220,23 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                 <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.2)" />
               ))}
             </Pie>
-            <Tooltip formatter={(value: number) => [formatCurrencyTooltip(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+            <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
             <Legend />
           </PieChart>
         );
+      case 'bar':
       default:
-        // Bar Chart simples fallback
         return (
           <BarChart data={processedData} margin={commonMargin}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatNumberPTBR} />
-            <Tooltip formatter={(value: number) => [formatCurrencyTooltip(value), '']} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
+            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} />
+            <Tooltip cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
-              <Bar key={key} dataKey={key} name={key} fill={COLORS[index % COLORS.length]} radius={[4, 4, 0, 0]}>
-                 {processedData.map((entry: any, i: number) => (
-                  <Cell key={`cell-${i}`} fill={entry.color || COLORS[index % COLORS.length]} />
+              <Bar key={key} dataKey={key} name={key === 'value' ? 'Quantidade' : key} fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} radius={[4, 4, 0, 0]}>
+                {processedData.map((entry: any, i: number) => (
+                  <Cell key={`cell-${i}`} fill={entry.color || (dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length])} />
                 ))}
               </Bar>
             ))}
