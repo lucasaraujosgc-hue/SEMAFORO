@@ -702,13 +702,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl mb-8">
                         <table className="w-full text-xs text-left">
                             <thead className="bg-slate-950 text-slate-500 font-black uppercase">
-                            <tr><th className="p-4">Problema</th><th className="p-4">Ação</th><th className="p-4"></th></tr>
+                            <tr>
+                                <th className="p-4">Problema</th>
+                                <th className="p-4 w-32">Impacto</th>
+                                <th className="p-4">Causa Provável</th>
+                                <th className="p-4">Ação Corretiva</th>
+                                <th className="p-4 w-32">Prazo</th>
+                                <th className="p-4 w-10"></th>
+                            </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-800">
                             {report.problemasCriticos.map((p, i) => (
                                 <tr key={i}>
                                 <td className="p-2"><input value={p.problema} onChange={e => { const n = [...report.problemasCriticos]; n[i].problema = e.target.value; setReport({...report, problemasCriticos: n}); }} className="w-full bg-transparent p-2 text-white outline-none" placeholder="Problema" /></td>
-                                <td className="p-2"><input value={p.acao} onChange={e => { const n = [...report.problemasCriticos]; n[i].acao = e.target.value; setReport({...report, problemasCriticos: n}); }} className="w-full bg-transparent p-2 text-slate-400 outline-none" placeholder="Ação" /></td>
+                                
+                                <td className="p-2">
+                                    <select value={p.impacto} onChange={e => { const n = [...report.problemasCriticos]; n[i].impacto = e.target.value as any; setReport({...report, problemasCriticos: n}); }} className="w-full bg-slate-950 text-white rounded p-2 outline-none">
+                                        <option value="Alto">Alto</option>
+                                        <option value="Médio">Médio</option>
+                                        <option value="Baixo">Baixo</option>
+                                    </select>
+                                </td>
+
+                                <td className="p-2"><input value={p.causa} onChange={e => { const n = [...report.problemasCriticos]; n[i].causa = e.target.value; setReport({...report, problemasCriticos: n}); }} className="w-full bg-transparent p-2 text-slate-400 outline-none" placeholder="Causa raiz" /></td>
+
+                                <td className="p-2"><input value={p.acao} onChange={e => { const n = [...report.problemasCriticos]; n[i].acao = e.target.value; setReport({...report, problemasCriticos: n}); }} className="w-full bg-transparent p-2 text-emerald-400 outline-none" placeholder="Ação" /></td>
+
+                                <td className="p-2"><input value={p.prazo} onChange={e => { const n = [...report.problemasCriticos]; n[i].prazo = e.target.value; setReport({...report, problemasCriticos: n}); }} className="w-full bg-transparent p-2 text-slate-400 outline-none" placeholder="Prazo" /></td>
+
                                 <td className="p-2"><button onClick={() => setReport({...report, problemasCriticos: report.problemasCriticos.filter((_, idx) => idx !== i)})} className="text-slate-600 hover:text-red-500"><Trash2 size={14}/></button></td>
                                 </tr>
                             ))}

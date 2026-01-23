@@ -518,11 +518,23 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                 <h4 className="text-lg font-black text-white flex items-center gap-2 uppercase tracking-tight"><AlertTriangle className="text-amber-500" size={20}/> Problemas e Plano de Ataque</h4>
                 <div className="space-y-4">
                    {r.problemasCriticos?.length > 0 ? r.problemasCriticos.map((p: any, i: number) => (
-                     <div key={i} className="bg-red-500/5 border border-red-500/20 p-5 rounded-3xl space-y-3">
+                     <div key={i} className="bg-red-500/5 border border-red-500/20 p-5 rounded-3xl space-y-4">
                         <div className="flex justify-between items-start">
                           <h6 className="font-bold text-red-400 text-sm">{p.problema}</h6>
-                          <span className="text-[10px] font-black bg-red-500/20 px-2 py-0.5 rounded text-red-300 uppercase">{p.impacto} impacto</span>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${p.impacto === 'Alto' ? 'bg-red-500/20 text-red-300' : 'bg-amber-500/20 text-amber-300'}`}>{p.impacto} impacto</span>
                         </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                               <span className="text-slate-500 font-black uppercase text-[9px] block mb-1">Causa Provável</span>
+                               <p className="text-xs text-slate-300">{p.causa || '-'}</p>
+                            </div>
+                            <div>
+                               <span className="text-slate-500 font-black uppercase text-[9px] block mb-1">Prazo</span>
+                               <p className="text-xs text-slate-300">{p.prazo || '-'}</p>
+                            </div>
+                        </div>
+
                         <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/10 text-xs">
                           <span className="text-emerald-400 font-black uppercase text-[9px] block mb-1">Ação Corretiva</span>
                           {p.acao}
