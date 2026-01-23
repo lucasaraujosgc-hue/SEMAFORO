@@ -158,7 +158,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       );
     }
 
-    const commonMargin = { top: 40, right: 20, bottom: 5, left: 0 };
+    // Margens ajustadas para evitar cortes
+    const commonMargin = { top: 20, right: 20, bottom: 5, left: 0 };
     const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.1)];
 
     // NOVO: Detecta se é o formato misto do novo AdminPanel (com barValue e lineValue)
@@ -174,7 +175,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
               <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
               
-              <Bar dataKey="barValue" name={barLabel || "Valor"} radius={[4, 4, 0, 0]}>
+              <Bar dataKey="barValue" name={barLabel || "Valor"} radius={[4, 4, 0, 0]} maxBarSize={60}>
                  {processedData.map((entry: any, i: number) => (
                   <Cell key={`cell-${i}`} fill={entry.color || '#10b981'} />
                 ))}
@@ -203,7 +204,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
             if (serie.type === 'line') {
               return <Line key={dataKey} type="monotone" dataKey={dataKey} name={dataKey} stroke={serieColor} strokeWidth={3} yAxisId={yAxisId} dot={{ r: 4 }} activeDot={{ r: 6 }} />;
             } else {
-              return <Bar key={dataKey} dataKey={dataKey} name={dataKey} fill={serieColor} yAxisId={yAxisId} radius={[4, 4, 0, 0]} />;
+              return <Bar key={dataKey} dataKey={dataKey} name={dataKey} fill={serieColor} yAxisId={yAxisId} radius={[4, 4, 0, 0]} maxBarSize={60} />;
             }
           })}
         </ComposedChart>
@@ -265,7 +266,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
             <Tooltip formatter={(value: number) => [formatValue(value), '']} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
-              <Bar key={key} dataKey={key} name={key === 'value' ? 'Quantidade' : key} fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} radius={[4, 4, 0, 0]}>
+              <Bar key={key} dataKey={key} name={key === 'value' ? 'Quantidade' : key} fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} radius={[4, 4, 0, 0]} maxBarSize={60}>
                 {processedData.map((entry: any, i: number) => (
                   <Cell key={`cell-${i}`} fill={entry.color || (dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length])} />
                 ))}
@@ -278,10 +279,10 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
 
   return (
     <div className="w-full h-full min-h-[300px] flex flex-col relative">
-      {/* Title as Legend-like */}
+      {/* Título interno exibido de foroma fixa e estilizada como legenda */}
       {title && (
-          <div className="absolute top-0 left-0 right-0 text-center pointer-events-none z-10">
-              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-[#0B1120]/80 px-2 py-1 rounded backdrop-blur-sm">
+          <div className="w-full text-center pb-2 z-10">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-[#0B1120]/50 px-3 py-1 rounded-full border border-slate-800">
                   {title}
               </span>
           </div>
