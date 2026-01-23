@@ -158,7 +158,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       );
     }
 
-    const commonMargin = { top: 10, right: 20, bottom: 5, left: 0 };
+    const commonMargin = { top: 40, right: 20, bottom: 5, left: 0 };
     const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.1)];
 
     // NOVO: Detecta se é o formato misto do novo AdminPanel (com barValue e lineValue)
@@ -167,14 +167,14 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
         const hasLineData = processedData.some((d: any) => d.lineValue !== undefined && d.lineValue !== null);
 
         return (
-            <ComposedChart data={processedData} margin={commonMargin} barCategoryGap="20%">
+            <ComposedChart data={processedData} margin={commonMargin}>
               <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
               <XAxis dataKey="label" scale="point" padding={{ left: 20, right: 20 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
               <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
               <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
               
-              <Bar dataKey="barValue" name={barLabel || "Valor"} radius={[4, 4, 0, 0]} maxBarSize={80}>
+              <Bar dataKey="barValue" name={barLabel || "Valor"} radius={[4, 4, 0, 0]}>
                  {processedData.map((entry: any, i: number) => (
                   <Cell key={`cell-${i}`} fill={entry.color || '#10b981'} />
                 ))}
@@ -187,9 +187,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
     }
 
     if (isComplex && complexConfig && complexConfig.series) {
-      // ... (Código complexo anterior mantido) ...
       return (
-        <ComposedChart data={processedData} margin={commonMargin} barCategoryGap="20%">
+        <ComposedChart data={processedData} margin={commonMargin}>
           <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" scale="point" padding={{ left: 10, right: 10 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
           <YAxis yAxisId="left" orientation="left" stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} label={complexConfig.yAxes?.left?.title ? { value: complexConfig.yAxes.left.title, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 } : undefined} />
@@ -204,7 +203,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
             if (serie.type === 'line') {
               return <Line key={dataKey} type="monotone" dataKey={dataKey} name={dataKey} stroke={serieColor} strokeWidth={3} yAxisId={yAxisId} dot={{ r: 4 }} activeDot={{ r: 6 }} />;
             } else {
-              return <Bar key={dataKey} dataKey={dataKey} name={dataKey} fill={serieColor} yAxisId={yAxisId} radius={[4, 4, 0, 0]} maxBarSize={80} />;
+              return <Bar key={dataKey} dataKey={dataKey} name={dataKey} fill={serieColor} yAxisId={yAxisId} radius={[4, 4, 0, 0]} />;
             }
           })}
         </ComposedChart>
@@ -259,14 +258,14 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       case 'bar':
       default:
         return (
-          <BarChart data={processedData} margin={commonMargin} barCategoryGap="20%">
+          <BarChart data={processedData} margin={commonMargin}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
             <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
             <Tooltip formatter={(value: number) => [formatValue(value), '']} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
-              <Bar key={key} dataKey={key} name={key === 'value' ? 'Quantidade' : key} fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} radius={[4, 4, 0, 0]} maxBarSize={80}>
+              <Bar key={key} dataKey={key} name={key === 'value' ? 'Quantidade' : key} fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} radius={[4, 4, 0, 0]}>
                 {processedData.map((entry: any, i: number) => (
                   <Cell key={`cell-${i}`} fill={entry.color || (dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length])} />
                 ))}
@@ -278,8 +277,15 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
   };
 
   return (
-    <div className="w-full h-full min-h-[300px] flex flex-col">
-      {title && <div className="text-xs font-bold text-slate-500 mb-2 px-2 uppercase tracking-wide text-left">{title}</div>}
+    <div className="w-full h-full min-h-[300px] flex flex-col relative">
+      {/* Title as Legend-like */}
+      {title && (
+          <div className="absolute top-0 left-0 right-0 text-center pointer-events-none z-10">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-[#0B1120]/80 px-2 py-1 rounded backdrop-blur-sm">
+                  {title}
+              </span>
+          </div>
+      )}
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
             {renderChart()}
