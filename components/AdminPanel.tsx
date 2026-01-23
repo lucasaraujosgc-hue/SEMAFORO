@@ -72,7 +72,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [isDragging, setIsDragging] = useState(false);
 
   // Form State
-  const [title, setTitle] = useState(''); // Usado como "Nome do Indicador" no cadastro e "Título" no gráfico
+  const [indicatorName, setIndicatorName] = useState(''); // Nome do Indicador (Cabeçalho)
+  const [chartTitle, setChartTitle] = useState(''); // Título do Gráfico (Interno)
   const [description, setDescription] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<TopicId>(TopicId.EDUCACAO);
   const [responsavel, setResponsavel] = useState('');
@@ -125,7 +126,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const handleEditClick = (post: Post) => {
     setEditingPostId(post.id);
     setSelectedTopic(post.topicId);
-    setTitle(post.chartConfig.title);
+    
+    // Separando Nome do Indicador do Título do Gráfico
+    setIndicatorName(post.indicatorName || post.chartConfig.title);
+    setChartTitle(post.chartConfig.title);
+
     setDescription(post.description);
     setResponsavel(post.responsavel || '');
     setFonteOficial(post.fonteOficial || '');
@@ -176,9 +181,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
     const config: ChartConfig = { 
         type: chartType, 
-        title, 
-        barLabel,  // Salva o nome da série de barras
-        lineLabel: showLineData ? lineLabel : undefined, // Só salva label da linha se estiver ativa
+        title: chartTitle, // Título interno do gráfico
+        barLabel,  
+        lineLabel: showLineData ? lineLabel : undefined, 
         data: cleanData 
     };
     
@@ -188,16 +193,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     };
     
     const extra = { 
+        indicatorName, // Nome principal do indicador
         responsavel, 
         fonteOficial, 
         recorrencia, 
         dataAtualizacao: Date.now(), 
         semaforoRules, 
-        semaforoGeral, // Salva o status geral
+        semaforoGeral, 
         progress, 
         progressHistory, 
         report: finalReport,
-        lastEditor: currentUser // Salva quem editou por último
+        lastEditor: currentUser 
     };
     
     let success;
@@ -206,7 +212,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     
     if (success !== false) {
       setEditingPostId(null); 
-      setTitle(''); 
+      setIndicatorName('');
+      setChartTitle('');
       setReport(INITIAL_REPORT); 
       setActiveTab('list');
       setBuilderRows([{ label: 'Mês 1', barValue: 0, lineValue: 0, color: '#10b981' }]); 
@@ -377,8 +384,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">1. Definição Estratégica</h3>
                     <div className="grid md:grid-cols-2 gap-6">
                        <div className="space-y-2">
-                         <label className="text-[10px] font-black text-slate-500 uppercase">Nome do Indicador</label>
-                         <input value={title} onChange={e => setTitle(e.target.value)} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white font-bold" />
+                         <label className="text-[10px] font-black text-slate-500 uppercase">Nome do Indicador (Cabeçalho)</label>
+                         <input value={indicatorName} onChange={e => setIndicatorName(e.target.value)} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white font-bold" />
                        </div>
                        <div className="space-y-2">
                          <label className="text-[10px] font-black text-slate-500 uppercase">Área</label>
@@ -479,14 +486,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         
                         <div className="grid md:grid-cols-2 gap-6">
                              <div className="space-y-2">
-                                 <label className="text-[10px] font-black text-slate-500 uppercase">Título do Gráfico</label>
+                                 <label className="text-[10px] font-black text-slate-500 uppercase">Título do Gráfico (Legenda Interna)</label>
                                  <input 
-                                     value={title} 
-                                     onChange={e => setTitle(e.target.value)} 
+                                     value={chartTitle} 
+                                     onChange={e => setChartTitle(e.target.value)} 
                                      className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white font-bold" 
-                                     placeholder="Ex: Evolução de Atendimentos"
+                                     placeholder="Ex: Evolução Mensal"
                                  />
-                                 <p className="text-[10px] text-slate-600">Este título aparecerá no topo do gráfico.</p>
+                                 <p className="text-[10px] text-slate-600">Este título aparecerá dentro da área do gráfico.</p>
                              </div>
                              
                              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
@@ -871,7 +878,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                           <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-slate-900 ${post.semaforoGeral === 'yellow' ? 'bg-amber-500' : post.semaforoGeral === 'red' ? 'bg-red-500' : 'bg-emerald-500'}`}></div>
                         </div>
                         <div>
-                          <h4 className="font-black text-slate-100 text-lg leading-none mb-1">{post.chartConfig.title}</h4>
+                          <h4 className="font-black text-slate-100 text-lg leading-none mb-1">{post.indicatorName || post.chartConfig.title}</h4>
                           <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{post.responsavel} • {new Date(post.dataAtualizacao).toLocaleDateString()}</p>
                         </div>
                       </div>

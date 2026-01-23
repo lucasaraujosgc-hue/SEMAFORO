@@ -267,7 +267,8 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
                  
                  <div className="flex-1">
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{post.recorrencia}</span>
-                    <h3 className="font-bold text-lg text-slate-100 leading-tight mt-1">{post.chartConfig.title}</h3>
+                    {/* Exibe o Nome do Indicador (Principal) ou fallback para o Título do Gráfico */}
+                    <h3 className="font-bold text-lg text-slate-100 leading-tight mt-1">{post.indicatorName || post.chartConfig.title}</h3>
                  </div>
               </div>
               <button onClick={() => setSelectedPost(post)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white hover:bg-emerald-600 rounded-xl transition-all absolute top-6 right-6"><Maximize2 size={18}/></button>
@@ -328,7 +329,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                 <span className="bg-emerald-500/10 text-emerald-400 text-[10px] font-black px-2.5 py-1 rounded-full border border-emerald-500/20 uppercase tracking-widest">Indicador Estratégico</span>
                 <span className="text-slate-500 text-[10px] font-bold uppercase">{post.recorrencia}</span>
               </div>
-              <h2 className="text-3xl font-black text-white tracking-tight">{post.chartConfig.title}</h2>
+              <h2 className="text-3xl font-black text-white tracking-tight">{post.indicatorName || post.chartConfig.title}</h2>
             </div>
           </div>
           <button onClick={onClose} className="p-4 bg-slate-800/50 hover:bg-red-500 text-slate-400 hover:text-white rounded-2xl transition-all shadow-xl"><X size={24}/></button>

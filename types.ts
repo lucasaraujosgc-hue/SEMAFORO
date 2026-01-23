@@ -134,6 +134,7 @@ export interface ChartConfig {
 export interface Post {
   id: string;
   topicId: TopicId;
+  indicatorName?: string; // Nome principal do Indicador (Cabeçalho)
   description: string;
   chartConfig: ChartConfig;
   createdAt: number;
