@@ -159,8 +159,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
     }
 
     // Margens ajustadas para evitar cortes
-    const commonMargin = { top: 20, right: 20, bottom: 5, left: 0 };
-    const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.1)];
+    const commonMargin = { top: 20, right: 30, bottom: 20, left: 50 };
+    const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.05)];
 
     // NOVO: Detecta se é o formato misto do novo AdminPanel (com barValue e lineValue)
     if (processedData.length > 0 && (processedData[0].barValue !== undefined || processedData[0].lineValue !== undefined)) {
