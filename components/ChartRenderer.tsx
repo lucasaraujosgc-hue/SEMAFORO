@@ -168,14 +168,39 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
         const hasLineData = processedData.some((d: any) => d.lineValue !== undefined && d.lineValue !== null);
 
         return (
-            <ComposedChart data={processedData} margin={commonMargin}>
+            <ComposedChart 
+                data={processedData} 
+                margin={commonMargin}
+                barCategoryGap="60%"
+                barGap={0}
+            >
               <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="label" scale="point" padding={{ left: 20, right: 20 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
-              <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+              <XAxis 
+                dataKey="label" 
+                scale="point" 
+                padding={{ left: 60, right: 60 }} 
+                stroke="#94a3b8" 
+                fontSize={11} 
+                tickLine={false} 
+              />
+              <YAxis 
+                stroke="#94a3b8" 
+                fontSize={11} 
+                tickLine={false} 
+                domain={domainWithPadding} 
+                tickFormatter={formatValue}
+                tickCount={5}
+                interval={0}
+              />
               <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
               
-              <Bar dataKey="barValue" name={barLabel || "Valor"} radius={[4, 4, 0, 0]} maxBarSize={60}>
+              <Bar 
+                dataKey="barValue" 
+                name={barLabel || "Valor"} 
+                radius={[6, 6, 0, 0]} 
+                maxBarSize={90}
+              >
                  {processedData.map((entry: any, i: number) => (
                   <Cell key={`cell-${i}`} fill={entry.color || '#10b981'} />
                 ))}
@@ -189,7 +214,12 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
 
     if (isComplex && complexConfig && complexConfig.series) {
       return (
-        <ComposedChart data={processedData} margin={commonMargin}>
+        <ComposedChart 
+            data={processedData} 
+            margin={commonMargin}
+            barCategoryGap="45%"
+            barGap={0}
+        >
           <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" scale="point" padding={{ left: 10, right: 10 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
           <YAxis yAxisId="left" orientation="left" stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} label={complexConfig.yAxes?.left?.title ? { value: complexConfig.yAxes.left.title, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 } : undefined} />
@@ -259,14 +289,34 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       case 'bar':
       default:
         return (
-          <BarChart data={processedData} margin={commonMargin}>
+          <BarChart 
+            data={processedData} 
+            margin={commonMargin}
+            barCategoryGap="60%"
+            barGap={0}
+          >
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+            <YAxis 
+                stroke="#94a3b8" 
+                fontSize={12} 
+                tickLine={false} 
+                domain={domainWithPadding} 
+                tickFormatter={formatValue} 
+                tickCount={5}
+                interval={0}
+            />
             <Tooltip formatter={(value: number) => [formatValue(value), '']} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
-              <Bar key={key} dataKey={key} name={key === 'value' ? 'Quantidade' : key} fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} radius={[4, 4, 0, 0]} maxBarSize={60}>
+              <Bar 
+                key={key} 
+                dataKey={key} 
+                name={key === 'value' ? 'Quantidade' : key} 
+                fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} 
+                radius={[6, 6, 0, 0]}
+                maxBarSize={90}
+               >
                 {processedData.map((entry: any, i: number) => (
                   <Cell key={`cell-${i}`} fill={entry.color || (dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length])} />
                 ))}
