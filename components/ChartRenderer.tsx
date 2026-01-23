@@ -29,7 +29,7 @@ const formatValue = (value: number) => {
 };
 
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
-  const { type, color: mainColor } = config;
+  const { type, color: mainColor, barLabel, lineLabel } = config;
 
   const { processedData, dataKeys, isComplex, complexConfig } = useMemo(() => {
     try {
@@ -163,6 +163,9 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
 
     // NOVO: Detecta se é o formato misto do novo AdminPanel (com barValue e lineValue)
     if (processedData.length > 0 && (processedData[0].barValue !== undefined || processedData[0].lineValue !== undefined)) {
+        // Verifica se realmente existe dado de linha para desenhar
+        const hasLineData = processedData.some((d: any) => d.lineValue !== undefined && d.lineValue !== null);
+
         return (
             <ComposedChart data={processedData} margin={commonMargin}>
               <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
@@ -171,12 +174,14 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
               <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
               
-              <Bar dataKey="barValue" name="Valor (Barra)" radius={[4, 4, 0, 0]} barSize={40}>
+              <Bar dataKey="barValue" name={barLabel || "Valor"} radius={[4, 4, 0, 0]} barSize={40}>
                  {processedData.map((entry: any, i: number) => (
                   <Cell key={`cell-${i}`} fill={entry.color || '#10b981'} />
                 ))}
               </Bar>
-              <Line type="monotone" dataKey="lineValue" name="Meta (Linha)" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              {hasLineData && (
+                <Line type="monotone" dataKey="lineValue" name={lineLabel || "Meta"} stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+              )}
             </ComposedChart>
         );
     }

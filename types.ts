@@ -123,6 +123,8 @@ export interface ExternalChartData {
 export interface ChartConfig {
   type: 'bar' | 'line' | 'pie';
   title: string;
+  barLabel?: string; // Nome da série de barras (ex: Realizado)
+  lineLabel?: string; // Nome da série de linha (ex: Meta)
   data?: any; // Array de objetos { label, value, color }
   series?: any[];
   color?: string; // Cor padrão
