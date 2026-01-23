@@ -39,6 +39,19 @@ const USERS_MAP: Record<string, string> = {
   'rosa': 'Maiara dos Santos Maia'
 };
 
+// --- Helpers de Formatação ---
+const formatCurrency = (value: number) => {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const handleCurrencyInput = (value: string): number => {
+  // Remove tudo que não é dígito
+  const digits = value.replace(/\D/g, '');
+  // Divide por 100 para considerar os centavos
+  return (parseInt(digits) || 0) / 100;
+};
+// -----------------------------
+
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
   isOpen, onClose, posts, onAddPost, onEditPost, onDeletePost
 }) => {
@@ -74,8 +87,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [report, setReport] = useState<ReportSection>(INITIAL_REPORT);
   const [progress, setProgress] = useState(0);
   const [progressHistory, setProgressHistory] = useState<ProgressUpdate[]>([]);
-  // Builder rows agora suporta cor
-  const [builderRows, setBuilderRows] = useState<any[]>([{ label: 'Mês 1', Valor: 0, color: '#10b981' }]);
+  
+  // Builder rows: Agora suporta barValue e lineValue
+  const [builderRows, setBuilderRows] = useState<any[]>([{ label: 'Mês 1', barValue: 0, lineValue: 0, color: '#10b981' }]);
 
   // Risco Personalizado
   const [customRiskInput, setCustomRiskInput] = useState('');
@@ -116,18 +130,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setReport({ ...INITIAL_REPORT, ...post.report });
     setProgress(post.progress || 0);
     setProgressHistory(post.progressHistory || []);
-    setBuilderRows(Array.isArray(post.chartConfig.data) ? post.chartConfig.data : []);
+
+    // Adaptação para carregar dados antigos ou novos
+    if (Array.isArray(post.chartConfig.data)) {
+        const loadedData = post.chartConfig.data.map((d: any) => ({
+            label: d.label,
+            color: d.color || '#10b981',
+            barValue: d.barValue !== undefined ? d.barValue : (d.Valor !== undefined ? d.Valor : 0),
+            lineValue: d.lineValue || 0
+        }));
+        setBuilderRows(loadedData);
+    } else {
+        setBuilderRows([]);
+    }
     
     setActiveTab('add');
     setFormStep(1);
   };
 
   const handleSubmit = async () => {
-    // Monta o config do gráfico com as cores individuais
+    // Detecta se estamos usando linha para mudar o tipo do gráfico internamente se necessário
+    // Se o usuário selecionou 'bar' mas preencheu 'lineValue', forçamos um comportamento de composição no renderer
+    
     const config: ChartConfig = { 
         type: chartType, 
         title, 
-        data: builderRows // rows já contém {label, Valor, color}
+        data: builderRows // rows contém {label, barValue, lineValue, color}
     };
     
     const finalReport = {
@@ -154,7 +182,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     
     if (success !== false) {
       setEditingPostId(null); setTitle(''); setReport(INITIAL_REPORT); setActiveTab('list');
-      setBuilderRows([{ label: 'Mês 1', Valor: 0, color: '#10b981' }]); 
+      setBuilderRows([{ label: 'Mês 1', barValue: 0, lineValue: 0, color: '#10b981' }]); 
       setProgress(0); setProgressHistory([]);
     }
   };
@@ -218,20 +246,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         }
     } else {
         // MODO FILTRADO: Estratégia "Troca de Slots"
-        // 1. Pega os itens visíveis
         const currentVisible = [...filteredPosts];
-        
-        // 2. Coleta os números de ordem ("slots") disponíveis neste grupo.
-        // Assumimos que filteredPosts já vem ordenado do pai (App.tsx), então map() gera lista ordenada.
-        // Se houver orders nulos/zero duplicados, o comportamento pode ser instável, mas tentamos preservar a intenção.
         const availableSlots = currentVisible.map(p => p.order !== undefined ? p.order : 0);
         
-        // 3. Aplica a mudança visual na lista
         const draggedContent = currentVisible.splice(draggedIdx, 1)[0];
         currentVisible.splice(overIdx, 0, draggedContent);
         
-        // 4. Atribui os slots antigos à nova sequência
-        // O primeiro item da nova lista visual ganha o menor número de ordem disponível, e assim por diante.
         for (let i = 0; i < currentVisible.length; i++) {
             const p = currentVisible[i];
             const targetOrder = availableSlots[i];
@@ -446,19 +466,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
 
                         <div className="space-y-4">
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontos de Dados (Eixo X, Valor, Cor)</h4>
+                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontos de Dados</h4>
                             <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
                                 {builderRows.map((r, i) => (
                                 <div key={i} className="flex gap-2 mb-2 items-center">
-                                    <input value={r.label} onChange={e => { const n = [...builderRows]; n[i].label = e.target.value; setBuilderRows(n); }} className="flex-1 bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-xs" placeholder="Rótulo (Ex: Jan)" />
-                                    <input type="number" value={r.Valor} onChange={e => { const n = [...builderRows]; n[i].Valor = e.target.value; setBuilderRows(n); }} className="w-24 bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 text-xs font-bold" placeholder="Valor" />
-                                    <div className="relative w-10 h-10 overflow-hidden rounded-xl border border-slate-800">
-                                    <input type="color" value={r.color || '#10b981'} onChange={e => { const n = [...builderRows]; n[i].color = e.target.value; setBuilderRows(n); }} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                                    <div className="flex-1 min-w-[100px]">
+                                         <input value={r.label} onChange={e => { const n = [...builderRows]; n[i].label = e.target.value; setBuilderRows(n); }} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-xs" placeholder="Rótulo (Ex: Jan)" />
+                                    </div>
+                                    <div className="w-32">
+                                         <input 
+                                            type="text" 
+                                            value={formatCurrency(r.barValue || 0)} 
+                                            onChange={e => { const n = [...builderRows]; n[i].barValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
+                                            className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 text-xs font-bold text-right" 
+                                            placeholder="Valor" 
+                                         />
+                                    </div>
+                                    {/* Opção para Linha/Meta */}
+                                    <div className="w-32">
+                                         <input 
+                                            type="text" 
+                                            value={formatCurrency(r.lineValue || 0)} 
+                                            onChange={e => { const n = [...builderRows]; n[i].lineValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
+                                            className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-amber-400 text-xs font-bold text-right" 
+                                            placeholder="Meta/Linha" 
+                                         />
+                                    </div>
+
+                                    <div className="relative w-10 h-10 overflow-hidden rounded-xl border border-slate-800 shrink-0">
+                                        <input type="color" value={r.color || '#10b981'} onChange={e => { const n = [...builderRows]; n[i].color = e.target.value; setBuilderRows(n); }} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
                                     </div>
                                     <button onClick={() => setBuilderRows(builderRows.filter((_, idx) => idx !== i))} className="p-2 text-slate-700 hover:text-red-500"><X size={18}/></button>
                                 </div>
                                 ))}
-                                <button onClick={() => setBuilderRows([...builderRows, {label: '', Valor: 0, color: '#10b981'}])} className="text-[10px] font-black text-emerald-400 mt-2 uppercase flex items-center gap-1"><Plus size={14}/> Adicionar Ponto</button>
+                                <button onClick={() => setBuilderRows([...builderRows, {label: '', barValue: 0, lineValue: 0, color: '#10b981'}])} className="text-[10px] font-black text-emerald-400 mt-2 uppercase flex items-center gap-1"><Plus size={14}/> Adicionar Ponto</button>
                             </div>
                         </div>
                     </div>

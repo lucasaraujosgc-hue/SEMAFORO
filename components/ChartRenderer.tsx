@@ -24,6 +24,10 @@ interface ChartRendererProps {
 
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1'];
 
+const formatValue = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value);
+};
+
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
   const { type, color: mainColor } = config;
 
@@ -118,10 +122,15 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
         };
       }
 
-      // CASO 3: Formato "Flat" (Simples)
+      // CASO 3: Formato "Flat" (Simples & Novo AdminPanel)
       if (config.data && Array.isArray(config.data) && config.data.length > 0) {
         const first = config.data[0];
         if (!('values' in first) && !('series' in first)) {
+          // Detecta se tem chaves especiais (barValue/lineValue)
+          if (first.barValue !== undefined || first.lineValue !== undefined) {
+               return { processedData: config.data, dataKeys: ['barValue', 'lineValue'], isComplex: false };
+          }
+
           const keys = Object.keys(first).filter(k => k !== 'label' && k !== 'city' && k !== 'color');
           const normalized = config.data.map((item: any) => ({
             ...item,
@@ -149,20 +158,38 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       );
     }
 
-    // Aumentamos a margem superior para 40px para evitar cortes
     const commonMargin = { top: 40, right: 20, bottom: 5, left: 0 };
-    
-    // Função para calcular domínio com folga de 10% no topo
     const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.1)];
 
+    // NOVO: Detecta se é o formato misto do novo AdminPanel (com barValue e lineValue)
+    if (processedData.length > 0 && (processedData[0].barValue !== undefined || processedData[0].lineValue !== undefined)) {
+        return (
+            <ComposedChart data={processedData} margin={commonMargin}>
+              <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="label" scale="point" padding={{ left: 20, right: 20 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+              <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+              <Legend wrapperStyle={{ paddingTop: '10px' }} />
+              
+              <Bar dataKey="barValue" name="Valor (Barra)" radius={[4, 4, 0, 0]} barSize={40}>
+                 {processedData.map((entry: any, i: number) => (
+                  <Cell key={`cell-${i}`} fill={entry.color || '#10b981'} />
+                ))}
+              </Bar>
+              <Line type="monotone" dataKey="lineValue" name="Meta (Linha)" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+            </ComposedChart>
+        );
+    }
+
     if (isComplex && complexConfig && complexConfig.series) {
+      // ... (Código complexo anterior mantido) ...
       return (
         <ComposedChart data={processedData} margin={commonMargin}>
           <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" scale="point" padding={{ left: 10, right: 10 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
           <YAxis yAxisId="left" orientation="left" stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} label={complexConfig.yAxes?.left?.title ? { value: complexConfig.yAxes.left.title, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 } : undefined} />
           <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} tickLine={false} hide={!complexConfig.yAxes?.right} domain={domainWithPadding} label={complexConfig.yAxes?.right?.title ? { value: complexConfig.yAxes.right.title, angle: 90, position: 'insideRight', fill: '#94a3b8', fontSize: 10 } : undefined} />
-          <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+          <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
           <Legend wrapperStyle={{ paddingTop: '10px' }} />
           {complexConfig.series.map((serie, index) => {
             if (!serie) return null; 
@@ -185,8 +212,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
           <LineChart data={processedData} margin={commonMargin}>
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} />
-            <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
+            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+            <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
               <Line key={key} type="monotone" dataKey={key} name={key === 'value' ? 'Valor' : key} stroke={COLORS[index % COLORS.length]} strokeWidth={3} activeDot={{ r: 6 }} />
@@ -220,7 +247,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                 <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.2)" />
               ))}
             </Pie>
-            <Tooltip contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+            <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
             <Legend />
           </PieChart>
         );
@@ -230,8 +257,8 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
           <BarChart data={processedData} margin={commonMargin}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} />
-            <Tooltip cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
+            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+            <Tooltip formatter={(value: number) => [formatValue(value), '']} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
               <Bar key={key} dataKey={key} name={key === 'value' ? 'Quantidade' : key} fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} radius={[4, 4, 0, 0]}>
