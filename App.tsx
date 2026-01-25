@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert, ExternalLink, ArrowRight } from 'lucide-react';
 import { TOPICS } from './constants';
@@ -312,8 +312,72 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
 const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => {
   const r = post.report || {} as any;
   const semaforoRules = post.semaforoRules || { green: 'Normal', yellow: 'Atenção', red: 'Crítico' };
-  
   const history = [...(post.progressHistory || [])].sort((a,b) => b.date - a.date);
+
+  // Layout Logic
+  // Default values se não existirem
+  const layout = r.layout || { chartWidthPercent: 40, isVertical: false, order: 'chart-first' };
+  
+  // State para drag/resize live (inicializa com o valor salvo no post)
+  const [chartWidth, setChartWidth] = useState(layout.chartWidthPercent);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isResizing = useRef(false);
+
+  // Efeito para atualizar caso o post mude (embora raro no modal)
+  useEffect(() => {
+      setChartWidth(layout.chartWidthPercent);
+  }, [layout.chartWidthPercent]);
+
+  const startResizing = (e: React.MouseEvent) => {
+      isResizing.current = true;
+      e.preventDefault();
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', stopResizing);
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing.current || !containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      let newPercent = ((e.clientX - containerRect.left) / containerRect.width) * 100;
+      
+      // Limites de segurança (20% a 80%)
+      if (newPercent < 20) newPercent = 20;
+      if (newPercent > 80) newPercent = 80;
+
+      // Se a ordem for invertida (Tabela primeiro), o cálculo do chart width precisa ser invertido ou ajustado
+      // Mas como estamos mexendo na largura do PRIMEIRO elemento flex (que é o chart se order for chart-first),
+      // precisamos saber qual elemento estamos redimensionando.
+      // Para simplificar: O slider controla sempre a largura do GRÁFICO.
+      // Se o gráfico está na direita (order invertida), o mouse move precisa ser relativo.
+      // Vamos manter simples: Arrastar a barra do meio ajusta a proporção visualmente.
+      
+      setChartWidth(newPercent);
+  };
+
+  const stopResizing = () => {
+      isResizing.current = false;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', stopResizing);
+  };
+
+  // Styles dinâmicos
+  const containerStyle: React.CSSProperties = {
+      display: 'flex',
+      flexDirection: layout.isVertical ? 'column' : 'row',
+      gap: '2rem' // gap-8 equivalent
+  };
+
+  // Se for vertical, largura é sempre 100%. Se horizontal, usa a porcentagem.
+  const chartStyle: React.CSSProperties = {
+      width: layout.isVertical ? '100%' : `${chartWidth}%`,
+      order: layout.order === 'chart-first' ? 1 : 2
+  };
+
+  const tableStyle: React.CSSProperties = {
+      width: layout.isVertical ? '100%' : `${100 - chartWidth}%`,
+      order: layout.order === 'chart-first' ? 2 : 1
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4 backdrop-blur-xl overflow-y-auto" onClick={onClose}>
@@ -339,49 +403,69 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
           
           <section className="space-y-8">
             <h3 className="text-xl font-black flex items-center gap-3 text-white border-b border-slate-800 pb-4"><TrendingUp className="text-emerald-500" size={24}/> Dados de Evolução e Informações</h3>
-            <div className="grid lg:grid-cols-5 gap-8">
-               <div className="lg:col-span-2 h-80 bg-slate-950/50 rounded-[2rem] p-8 border border-slate-800/80 shadow-2xl">
+            
+            {/* CONTAINER FLEXÍVEL (Substitui o Grid) */}
+            <div ref={containerRef} style={containerStyle} className="relative group/resize">
+               
+               {/* ÁREA DO GRÁFICO */}
+               <div style={chartStyle} className="h-96 bg-slate-950/50 rounded-[2rem] p-8 border border-slate-800/80 shadow-2xl shrink-0 transition-[width] duration-75 ease-out relative">
                  <ChartRenderer config={post.chartConfig} />
                </div>
-               <div className="lg:col-span-3 bg-slate-900/20 rounded-[2rem] border border-slate-800/50 overflow-hidden">
+
+               {/* SEPARADOR (Apenas se horizontal) */}
+               {!layout.isVertical && (
+                   <div 
+                        onMouseDown={startResizing}
+                        className="w-4 cursor-col-resize flex items-center justify-center opacity-0 group-hover/resize:opacity-100 transition-opacity absolute top-0 bottom-0 z-20 hover:bg-emerald-500/10"
+                        style={{ left: `${layout.order === 'chart-first' ? chartWidth : 100 - chartWidth}%`, transform: 'translateX(-50%)' }}
+                   >
+                       <div className="w-1 h-12 bg-slate-600 rounded-full"></div>
+                   </div>
+               )}
+
+               {/* ÁREA DA TABELA */}
+               <div style={tableStyle} className="bg-slate-900/20 rounded-[2rem] border border-slate-800/50 overflow-hidden shrink-0 flex flex-col h-96">
                  <div className="p-5 border-b border-slate-800 bg-slate-950/50">
                     <h5 className="text-sm font-bold text-white uppercase tracking-wider">Informações do Indicador</h5>
                  </div>
-                 <table className="w-full text-left text-xs">
-                   <thead className="bg-slate-900/80 text-slate-500 uppercase font-black tracking-widest border-b border-slate-800">
-                     <tr>
-                       <th className="p-5">Variável</th>
-                       <th className="p-5">Resultado</th>
-                       <th className="p-5">Meta</th>
-                       <th className="p-5 text-center">Sinal</th>
-                       <th className="p-5 text-center">Tend.</th>
-                       <th className="p-5">Fonte</th>
-                     </tr>
-                   </thead>
-                   <tbody className="divide-y divide-slate-800/30">
-                     {r.indicadoresChave?.length > 0 ? r.indicadoresChave.map((ind: any, i: number) => (
-                       <tr key={i} className="hover:bg-slate-800/20 transition-all">
-                         <td className="p-5 font-bold text-slate-100">{ind.nome}</td>
-                         <td className="p-5 font-bold text-emerald-400">{ind.resultado}</td>
-                         <td className="p-5 text-slate-400">{ind.meta}</td>
-                         <td className="p-5 text-center">
-                              <div className="flex justify-center">
-                                <SemaforoWithTooltip status={ind.status} rules={semaforoRules} />
-                              </div>
-                         </td>
-                         <td className="p-5 text-center font-bold text-slate-300">
-                            {/* Usando o novo TrendBadge */}
-                            <div className="flex justify-center">
-                                <TrendBadge type={ind.tendencia} />
-                            </div>
-                         </td>
-                         <td className="p-5 text-slate-500 text-[10px]">{ind.fonte}</td>
-                       </tr>
-                     )) : (
-                       <tr><td colSpan={6} className="p-10 text-center text-slate-500 font-bold uppercase tracking-widest">Nenhuma informação adicional</td></tr>
-                     )}
-                   </tbody>
-                 </table>
+                 <div className="overflow-auto custom-scrollbar flex-1">
+                    <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-900/80 text-slate-500 uppercase font-black tracking-widest border-b border-slate-800 sticky top-0">
+                        <tr>
+                        <th className="p-5">{r.headerIndicador || 'Indicador'}</th>
+                        <th className="p-5">{r.headerResultado || 'Resultado'}</th>
+                        <th className="p-5">{r.headerMeta || 'Meta'}</th>
+                        <th className="p-5 text-emerald-500/80">{r.headerExtra || 'Extra'}</th>
+                        <th className="p-5 text-center">Sinal</th>
+                        <th className="p-5 text-center">Tend.</th>
+                        <th className="p-5">Fonte</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/30">
+                        {r.indicadoresChave?.length > 0 ? r.indicadoresChave.map((ind: any, i: number) => (
+                        <tr key={i} className="hover:bg-slate-800/20 transition-all">
+                            <td className="p-5 font-bold text-slate-100">{ind.nome}</td>
+                            <td className="p-5 font-bold text-emerald-400">{ind.resultado}</td>
+                            <td className="p-5 text-slate-400">{ind.meta}</td>
+                            <td className="p-5 text-amber-200 font-medium">{ind.extra || '-'}</td>
+                            <td className="p-5 text-center">
+                                <div className="flex justify-center">
+                                    <SemaforoWithTooltip status={ind.status} rules={semaforoRules} />
+                                </div>
+                            </td>
+                            <td className="p-5 text-center font-bold text-slate-300">
+                                <div className="flex justify-center">
+                                    <TrendBadge type={ind.tendencia} />
+                                </div>
+                            </td>
+                            <td className="p-5 text-slate-500 text-[10px]">{ind.fonte}</td>
+                        </tr>
+                        )) : (
+                        <tr><td colSpan={7} className="p-10 text-center text-slate-500 font-bold uppercase tracking-widest">Nenhuma informação adicional</td></tr>
+                        )}
+                    </tbody>
+                    </table>
+                 </div>
                </div>
             </div>
           </section>

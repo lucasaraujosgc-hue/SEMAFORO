@@ -49,11 +49,18 @@ export interface ReportSection {
   // 3. Dados do Gráfico (Gerenciado via ChartConfig, mas referenciado aqui logicamente)
 
   // 5. Informações do Indicador (Antigo Indicadores Secundários)
-  // Campos: Resultado atual, Meta (trimestre/ano), Sinal (🟢/🟡/🔴), Tendência (↑/→/↓) e Fonte do dado
+  // Campos personalizáveis do cabeçalho da tabela
+  headerIndicador?: string;
+  headerResultado?: string;
+  headerMeta?: string;
+  headerExtra?: string; // Novo cabeçalho opcional
+
+  // Campos: Resultado atual, Meta (trimestre/ano), Extra, Sinal (🟢/🟡/🔴), Tendência (↑/→/↓) e Fonte do dado
   indicadoresChave: Array<{
     nome: string; // Nome do indicador/Variável
     resultado: string;
     meta: string;
+    extra?: string; // Nova coluna extra
     status: 'green' | 'yellow' | 'red'; // Sinal
     tendencia: 'up' | 'stable' | 'down';
     fonte: string;
@@ -100,7 +107,14 @@ export interface ReportSection {
     evidencia: string;
   }>;
 
-  // 10. Anexos
+  // 10. Configuração de Layout (Novo)
+  layout?: {
+    chartWidthPercent: number; // Porcentagem de largura do gráfico (ex: 40)
+    isVertical: boolean; // Se verdadeiro, empilha gráfico e tabela
+    order: 'chart-first' | 'table-first'; // Quem aparece primeiro/esquerda
+  };
+
+  // 11. Anexos
   anexos: string;
 }
 

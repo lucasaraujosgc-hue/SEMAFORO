@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet } from 'lucide-react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
 import { read, utils } from 'xlsx';
@@ -23,8 +23,22 @@ const INITIAL_REPORT: ReportSection = {
   secretaria: '', periodo: '', responsavelPolitico: '', 
   pontoFocal: { nome: '', cargo: '', telefone: '', email: '' },
   resumoAvanços: '', resumoAtrasos: '', resumoDecisoes: '',
+  
+  // Cabeçalhos personalizáveis (com defaults)
+  headerIndicador: 'Indicador',
+  headerResultado: 'Resultado',
+  headerMeta: 'Meta (2ª métrica)',
+  headerExtra: 'Variação', // Default para a nova coluna
+  
   indicadoresChave: [], metasPrioritarias: [], problemasCriticos: [], decisoesPrefeito: [],
-  riscos: { tipos: [], descricao: '' }, compromissos: [], anexos: ''
+  riscos: { tipos: [], descricao: '' }, compromissos: [], anexos: '',
+
+  // Layout Default
+  layout: {
+      chartWidthPercent: 40,
+      isVertical: false,
+      order: 'chart-first'
+  }
 };
 
 const INITIAL_SEMAFORO: SemaforoConfig = {
@@ -151,7 +165,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setBarLabel(post.chartConfig.barLabel || 'Realizado');
     setLineLabel(post.chartConfig.lineLabel || 'Meta');
     
-    setReport({ ...INITIAL_REPORT, ...post.report });
+    setReport({ 
+        ...INITIAL_REPORT, 
+        ...post.report,
+        // Garante que o layout exista mesmo em posts antigos
+        layout: post.report.layout || INITIAL_REPORT.layout
+    });
     setProgress(post.progress || 0);
     setProgressHistory(post.progressHistory || []);
 
@@ -304,15 +323,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         
         // Pular cabeçalho (assumindo que a linha 1 é cabeçalho se tiver texto)
         const rows = data.slice(1).map((row: any) => {
-             // Estrutura esperada:
-             // 0: Indicador, 1: Resultado, 2: Meta, 3: Sinal (v/a/red), 4: Tendencia (c/e/q), 5: Fonte
+             // Estrutura esperada Atualizada:
+             // 0: Indicador
+             // 1: Resultado
+             // 2: Meta
+             // 3: Extra (NOVO!)
+             // 4: Sinal (v/a/red)
+             // 5: Tendencia (c/e/q)
+             // 6: Fonte
              return {
                  nome: row[0] || '',
                  resultado: row[1] || '',
                  meta: row[2] || '',
-                 status: statusMap[String(row[3]).toLowerCase()] || 'green',
-                 tendencia: trendMap[String(row[4]).toLowerCase()] || 'stable',
-                 fonte: row[5] || ''
+                 extra: row[3] || '', // Captura a nova coluna
+                 status: statusMap[String(row[4]).toLowerCase()] || 'green',
+                 tendencia: trendMap[String(row[5]).toLowerCase()] || 'stable',
+                 fonte: row[6] || ''
              };
         }).filter(r => r.nome); // Remove linhas vazias
 
@@ -444,6 +470,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 { id: 7, label: '7. Prob. & Decisões', icon: AlertTriangle },
                 { id: 8, label: '8. Riscos', icon: ShieldAlert },
                 { id: 9, label: '9. Histórico', icon: History },
+                { id: 10, label: '10. Layout', icon: LayoutTemplate },
               ].map(step => (
                 <button key={step.id} onClick={() => setFormStep(step.id)} className={`flex items-center gap-3 p-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-left transition-all ${formStep === step.id ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'text-slate-500 hover:text-slate-300'}`}>
                   <step.icon size={16} className={formStep === step.id ? 'text-emerald-400' : 'text-slate-600'} />
@@ -755,13 +782,54 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                     </div>
                     
-                    <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
-                        <table className="w-full text-xs text-left">
+                    <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl overflow-x-auto">
+                        <table className="w-full text-xs text-left min-w-[800px]">
                             <thead className="bg-slate-950 text-slate-500 font-black uppercase">
                             <tr>
-                                <th className="p-4">Indicador</th>
-                                <th className="p-4">Resultado</th>
-                                <th className="p-4">Meta (2ª métrica)</th>
+                                <th className="p-4 min-w-[150px]">
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] text-slate-700 mb-1">EDITÁVEL</span>
+                                        <input 
+                                            value={report.headerIndicador} 
+                                            onChange={e => setReport({...report, headerIndicador: e.target.value})} 
+                                            className="bg-transparent border-b border-slate-800 focus:border-emerald-500 outline-none w-full uppercase text-slate-500 focus:text-emerald-400 transition-colors cursor-text" 
+                                            placeholder="Indicador"
+                                        />
+                                    </div>
+                                </th>
+                                <th className="p-4 min-w-[100px]">
+                                    <div className="flex flex-col">
+                                        <span className="text-[9px] text-slate-700 mb-1">EDITÁVEL</span>
+                                         <input 
+                                            value={report.headerResultado} 
+                                            onChange={e => setReport({...report, headerResultado: e.target.value})} 
+                                            className="bg-transparent border-b border-slate-800 focus:border-emerald-500 outline-none w-full uppercase text-slate-500 focus:text-emerald-400 transition-colors cursor-text" 
+                                            placeholder="Resultado"
+                                        />
+                                    </div>
+                                </th>
+                                <th className="p-4 min-w-[100px]">
+                                     <div className="flex flex-col">
+                                        <span className="text-[9px] text-slate-700 mb-1">EDITÁVEL</span>
+                                         <input 
+                                            value={report.headerMeta} 
+                                            onChange={e => setReport({...report, headerMeta: e.target.value})} 
+                                            className="bg-transparent border-b border-slate-800 focus:border-emerald-500 outline-none w-full uppercase text-slate-500 focus:text-emerald-400 transition-colors cursor-text" 
+                                            placeholder="Meta"
+                                        />
+                                    </div>
+                                </th>
+                                <th className="p-4 min-w-[100px] bg-slate-900/50">
+                                     <div className="flex flex-col">
+                                        <span className="text-[9px] text-emerald-500/50 mb-1">NOVO! EDITÁVEL</span>
+                                         <input 
+                                            value={report.headerExtra} 
+                                            onChange={e => setReport({...report, headerExtra: e.target.value})} 
+                                            className="bg-transparent border-b border-slate-800 focus:border-emerald-500 outline-none w-full uppercase text-emerald-400 focus:text-emerald-300 transition-colors cursor-text font-bold" 
+                                            placeholder="Extra"
+                                        />
+                                    </div>
+                                </th>
                                 <th className="p-4">Sinal</th>
                                 <th className="p-4">Tendência</th>
                                 <th className="p-4">Fonte</th>
@@ -774,6 +842,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <td className="p-2"><input value={ind.nome} onChange={e => { const n = [...report.indicadoresChave]; n[i].nome = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-white outline-none" placeholder="Nome" /></td>
                                 <td className="p-2"><input value={ind.resultado} onChange={e => { const n = [...report.indicadoresChave]; n[i].resultado = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-emerald-400 font-bold outline-none" placeholder="100%" /></td>
                                 <td className="p-2"><input value={ind.meta} onChange={e => { const n = [...report.indicadoresChave]; n[i].meta = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-slate-400 outline-none" placeholder="120%" /></td>
+                                <td className="p-2 bg-slate-900/30"><input value={ind.extra || ''} onChange={e => { const n = [...report.indicadoresChave]; n[i].extra = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-amber-200 outline-none font-medium" placeholder="-" /></td>
                                 <td className="p-2">
                                     <select value={ind.status} onChange={e => { const n = [...report.indicadoresChave]; n[i].status = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
                                     <option value="green">🟢</option>
@@ -971,6 +1040,87 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         ))}
                       </div>
                    </div>
+                )}
+                
+                {formStep === 10 && (
+                  <div className="space-y-8">
+                      <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">10. Layout e Aparência</h3>
+                      <div className="grid md:grid-cols-2 gap-8">
+                          
+                          <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-2xl space-y-8">
+                              <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                  <ArrowLeftRight size={18} className="text-emerald-500"/> Largura do Gráfico vs. Tabela
+                              </h4>
+                              
+                              <div className="space-y-4">
+                                  <div className="flex justify-between items-end">
+                                      <span className="text-xs font-black text-white">{report.layout?.chartWidthPercent || 40}% Gráfico</span>
+                                      <span className="text-xs font-black text-white">{100 - (report.layout?.chartWidthPercent || 40)}% Tabela</span>
+                                  </div>
+                                  <input 
+                                    type="range" 
+                                    min="20" 
+                                    max="80" 
+                                    value={report.layout?.chartWidthPercent || 40} 
+                                    onChange={e => setReport({
+                                        ...report, 
+                                        layout: { ...report.layout!, chartWidthPercent: Number(e.target.value) }
+                                    })}
+                                    className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500 hover:accent-emerald-400"
+                                  />
+                                  <p className="text-[10px] text-slate-500 italic">Arraste para definir a proporção inicial entre o gráfico e a área de informações.</p>
+                              </div>
+                          </div>
+
+                          <div className="bg-slate-900 p-8 rounded-[2rem] border border-slate-800 shadow-2xl space-y-8">
+                               <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                  <ArrowUpDown size={18} className="text-emerald-500"/> Orientação
+                               </h4>
+                               
+                               <div className="flex gap-4">
+                                   <button 
+                                      onClick={() => setReport({ ...report, layout: { ...report.layout!, isVertical: false } })}
+                                      className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${!report.layout?.isVertical ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-slate-800 bg-slate-950 text-slate-600'}`}
+                                   >
+                                       <div className="flex gap-1 items-center">
+                                           <div className="w-8 h-8 bg-current rounded opacity-50"></div>
+                                           <div className="w-12 h-8 bg-current rounded opacity-50"></div>
+                                       </div>
+                                       <span className="text-xs font-bold uppercase">Lado a Lado</span>
+                                   </button>
+                                   <button 
+                                      onClick={() => setReport({ ...report, layout: { ...report.layout!, isVertical: true } })}
+                                      className={`flex-1 p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 ${report.layout?.isVertical ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400' : 'border-slate-800 bg-slate-950 text-slate-600'}`}
+                                   >
+                                       <div className="flex flex-col gap-1 items-center">
+                                           <div className="w-8 h-8 bg-current rounded opacity-50"></div>
+                                           <div className="w-8 h-8 bg-current rounded opacity-50"></div>
+                                       </div>
+                                       <span className="text-xs font-bold uppercase">Empilhado</span>
+                                   </button>
+                               </div>
+
+                               <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 mt-8">
+                                  Ordem de Exibição
+                               </h4>
+                               <div className="flex gap-2 p-1 bg-slate-950 rounded-lg border border-slate-800">
+                                   <button 
+                                      onClick={() => setReport({ ...report, layout: { ...report.layout!, order: 'chart-first' } })}
+                                      className={`flex-1 py-2 rounded text-[10px] font-black uppercase transition-all ${report.layout?.order === 'chart-first' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                   >
+                                      Gráfico 1º
+                                   </button>
+                                   <button 
+                                      onClick={() => setReport({ ...report, layout: { ...report.layout!, order: 'table-first' } })}
+                                      className={`flex-1 py-2 rounded text-[10px] font-black uppercase transition-all ${report.layout?.order === 'table-first' ? 'bg-slate-800 text-white shadow' : 'text-slate-500 hover:text-slate-300'}`}
+                                   >
+                                      Tabela 1º
+                                   </button>
+                               </div>
+                          </div>
+
+                      </div>
+                  </div>
                 )}
               </div>
             ) : (
