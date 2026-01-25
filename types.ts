@@ -54,6 +54,7 @@ export interface ReportSection {
   headerResultado?: string;
   headerMeta?: string;
   headerExtra?: string; // Novo cabeçalho opcional
+  showExtraColumn?: boolean; // Controle de visibilidade da coluna extra
 
   // Campos: Resultado atual, Meta (trimestre/ano), Extra, Sinal (🟢/🟡/🔴), Tendência (↑/→/↓) e Fonte do dado
   indicadoresChave: Array<{

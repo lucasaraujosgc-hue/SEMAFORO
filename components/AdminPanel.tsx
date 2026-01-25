@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown } from 'lucide-react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown, Columns } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
 import { read, utils } from 'xlsx';
@@ -27,8 +27,9 @@ const INITIAL_REPORT: ReportSection = {
   // Cabeçalhos personalizáveis (com defaults)
   headerIndicador: 'Indicador',
   headerResultado: 'Resultado',
-  headerMeta: 'Meta (2ª métrica)',
-  headerExtra: 'Variação', // Default para a nova coluna
+  headerMeta: 'Meta',
+  headerExtra: 'Variação', 
+  showExtraColumn: false, // Default: oculta
   
   indicadoresChave: [], metasPrioritarias: [], problemasCriticos: [], decisoesPrefeito: [],
   riscos: { tipos: [], descricao: '' }, compromissos: [], anexos: '',
@@ -165,9 +166,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setBarLabel(post.chartConfig.barLabel || 'Realizado');
     setLineLabel(post.chartConfig.lineLabel || 'Meta');
     
+    // Lógica para determinar se a coluna extra deve ser mostrada em posts antigos
+    // Se showExtraColumn é undefined, mas existe algum dado em 'extra' ou um cabeçalho definido diferente do padrão, mostra.
+    const shouldShowExtra = post.report.showExtraColumn !== undefined 
+        ? post.report.showExtraColumn 
+        : (!!post.report.headerExtra || post.report.indicadoresChave.some((i: any) => i.extra));
+
     setReport({ 
         ...INITIAL_REPORT, 
         ...post.report,
+        showExtraColumn: shouldShowExtra,
         // Garante que o layout exista mesmo em posts antigos
         layout: post.report.layout || INITIAL_REPORT.layout
     });
@@ -321,8 +329,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             'q': 'down', 'queda': 'down'
         };
         
+        let foundExtraColumn = false;
+
         // Pular cabeçalho (assumindo que a linha 1 é cabeçalho se tiver texto)
         const rows = data.slice(1).map((row: any) => {
+             const extraVal = row[3] || '';
+             if (extraVal) foundExtraColumn = true;
+
              // Estrutura esperada Atualizada:
              // 0: Indicador
              // 1: Resultado
@@ -335,7 +348,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                  nome: row[0] || '',
                  resultado: row[1] || '',
                  meta: row[2] || '',
-                 extra: row[3] || '', // Captura a nova coluna
+                 extra: extraVal, // Captura a nova coluna
                  status: statusMap[String(row[4]).toLowerCase()] || 'green',
                  tendencia: trendMap[String(row[5]).toLowerCase()] || 'stable',
                  fonte: row[6] || ''
@@ -345,9 +358,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         if (rows.length > 0) {
             setReport(prev => ({
                 ...prev,
+                showExtraColumn: foundExtraColumn || prev.showExtraColumn, // Ativa a coluna se encontrou dados
                 indicadoresChave: [...prev.indicadoresChave, ...rows]
             }));
-            alert(`${rows.length} indicadores importados com sucesso!`);
+            alert(`${rows.length} indicadores importados com sucesso! ${foundExtraColumn ? '(Coluna Extra identificada e ativada)' : ''}`);
         } else {
             alert('Nenhum dado válido encontrado na planilha.');
         }
@@ -781,6 +795,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             </button>
                         </div>
                     </div>
+
+                    <div className="flex justify-end mb-2">
+                        {!report.showExtraColumn && (
+                            <button 
+                                onClick={() => setReport({...report, showExtraColumn: true})} 
+                                className="flex items-center gap-2 text-[10px] font-black uppercase text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg border border-emerald-500/20 transition-all"
+                            >
+                                <Plus size={12}/> Adicionar Coluna Personalizada
+                            </button>
+                        )}
+                    </div>
                     
                     <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl overflow-x-auto">
                         <table className="w-full text-xs text-left min-w-[800px]">
@@ -819,17 +844,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         />
                                     </div>
                                 </th>
-                                <th className="p-4 min-w-[100px] bg-slate-900/50">
-                                     <div className="flex flex-col">
-                                        <span className="text-[9px] text-emerald-500/50 mb-1">NOVO! EDITÁVEL</span>
-                                         <input 
-                                            value={report.headerExtra} 
-                                            onChange={e => setReport({...report, headerExtra: e.target.value})} 
-                                            className="bg-transparent border-b border-slate-800 focus:border-emerald-500 outline-none w-full uppercase text-emerald-400 focus:text-emerald-300 transition-colors cursor-text font-bold" 
-                                            placeholder="Extra"
-                                        />
-                                    </div>
-                                </th>
+                                {report.showExtraColumn && (
+                                    <th className="p-4 min-w-[100px] bg-slate-900/50 relative group/header">
+                                        <div className="flex flex-col">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[9px] text-emerald-500/50">NOVO! EDITÁVEL</span>
+                                                <button 
+                                                    onClick={() => setReport({...report, showExtraColumn: false})}
+                                                    className="opacity-0 group-hover/header:opacity-100 transition-opacity text-slate-600 hover:text-red-500"
+                                                    title="Remover Coluna"
+                                                >
+                                                    <Trash2 size={12}/>
+                                                </button>
+                                            </div>
+                                            <input 
+                                                value={report.headerExtra} 
+                                                onChange={e => setReport({...report, headerExtra: e.target.value})} 
+                                                className="bg-transparent border-b border-slate-800 focus:border-emerald-500 outline-none w-full uppercase text-emerald-400 focus:text-emerald-300 transition-colors cursor-text font-bold" 
+                                                placeholder="Extra"
+                                            />
+                                        </div>
+                                    </th>
+                                )}
                                 <th className="p-4">Sinal</th>
                                 <th className="p-4">Tendência</th>
                                 <th className="p-4">Fonte</th>
@@ -842,7 +878,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <td className="p-2"><input value={ind.nome} onChange={e => { const n = [...report.indicadoresChave]; n[i].nome = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-white outline-none" placeholder="Nome" /></td>
                                 <td className="p-2"><input value={ind.resultado} onChange={e => { const n = [...report.indicadoresChave]; n[i].resultado = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-emerald-400 font-bold outline-none" placeholder="100%" /></td>
                                 <td className="p-2"><input value={ind.meta} onChange={e => { const n = [...report.indicadoresChave]; n[i].meta = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-slate-400 outline-none" placeholder="120%" /></td>
-                                <td className="p-2 bg-slate-900/30"><input value={ind.extra || ''} onChange={e => { const n = [...report.indicadoresChave]; n[i].extra = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-amber-200 outline-none font-medium" placeholder="-" /></td>
+                                {report.showExtraColumn && (
+                                    <td className="p-2 bg-slate-900/30"><input value={ind.extra || ''} onChange={e => { const n = [...report.indicadoresChave]; n[i].extra = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-amber-200 outline-none font-medium" placeholder="-" /></td>
+                                )}
                                 <td className="p-2">
                                     <select value={ind.status} onChange={e => { const n = [...report.indicadoresChave]; n[i].status = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
                                     <option value="green">🟢</option>

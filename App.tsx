@@ -430,12 +430,12 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                  </div>
                  <div className="overflow-auto custom-scrollbar flex-1">
                     <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-900/80 text-slate-500 uppercase font-black tracking-widest border-b border-slate-800 sticky top-0">
+                    <thead className="bg-slate-900/80 text-slate-500 uppercase font-black tracking-widest border-b border-slate-800 sticky top-0 z-10">
                         <tr>
                         <th className="p-5">{r.headerIndicador || 'Indicador'}</th>
                         <th className="p-5">{r.headerResultado || 'Resultado'}</th>
                         <th className="p-5">{r.headerMeta || 'Meta'}</th>
-                        <th className="p-5 text-emerald-500/80">{r.headerExtra || 'Extra'}</th>
+                        {r.showExtraColumn && <th className="p-5 text-emerald-500/80">{r.headerExtra || 'Extra'}</th>}
                         <th className="p-5 text-center">Sinal</th>
                         <th className="p-5 text-center">Tend.</th>
                         <th className="p-5">Fonte</th>
@@ -447,7 +447,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                             <td className="p-5 font-bold text-slate-100">{ind.nome}</td>
                             <td className="p-5 font-bold text-emerald-400">{ind.resultado}</td>
                             <td className="p-5 text-slate-400">{ind.meta}</td>
-                            <td className="p-5 text-amber-200 font-medium">{ind.extra || '-'}</td>
+                            {r.showExtraColumn && <td className="p-5 text-amber-200 font-medium">{ind.extra || '-'}</td>}
                             <td className="p-5 text-center">
                                 <div className="flex justify-center">
                                     <SemaforoWithTooltip status={ind.status} rules={semaforoRules} />
@@ -461,7 +461,7 @@ const ReportModal = ({ post, onClose }: { post: Post, onClose: () => void }) => 
                             <td className="p-5 text-slate-500 text-[10px]">{ind.fonte}</td>
                         </tr>
                         )) : (
-                        <tr><td colSpan={7} className="p-10 text-center text-slate-500 font-bold uppercase tracking-widest">Nenhuma informação adicional</td></tr>
+                        <tr><td colSpan={r.showExtraColumn ? 7 : 6} className="p-10 text-center text-slate-500 font-bold uppercase tracking-widest">Nenhuma informação adicional</td></tr>
                         )}
                     </tbody>
                     </table>
