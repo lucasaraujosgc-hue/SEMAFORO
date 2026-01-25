@@ -1,8 +1,9 @@
 
 import React, { useState, useRef } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight } from 'lucide-react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
+import { read, utils } from 'xlsx';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -91,6 +92,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Controle de exibição da coluna de Linha
   const [showLineData, setShowLineData] = useState(false);
 
+  // JSON Mode State (Passo 3)
+  const [isJsonMode, setIsJsonMode] = useState(false);
+  const [jsonInput, setJsonInput] = useState('');
+
+  // File Upload Ref (Passo 5)
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [semaforoRules, setSemaforoRules] = useState<SemaforoConfig>(INITIAL_SEMAFORO);
   const [report, setReport] = useState<ReportSection>(INITIAL_REPORT);
   const [progress, setProgress] = useState(0);
@@ -147,6 +155,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setProgress(post.progress || 0);
     setProgressHistory(post.progressHistory || []);
 
+    // Inicializa JSON Mode se necessário
+    setJsonInput(JSON.stringify(post.chartConfig, null, 2));
+
     // Adaptação para carregar dados antigos ou novos
     if (Array.isArray(post.chartConfig.data)) {
         // Detecta se existe dado de linha em algum ponto
@@ -167,25 +178,37 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     
     setActiveTab('add');
     setFormStep(1);
+    setIsJsonMode(false); // Default to UI mode on edit open
   };
 
   const handleSubmit = async () => {
-    // Se a opção de linha estiver desativada, limpamos o lineValue para não sujar o gráfico
-    const cleanData = builderRows.map(row => {
-        const { lineValue, ...rest } = row;
-        if (showLineData) {
-            return row;
-        }
-        return rest; // Retorna sem lineValue
-    });
+    let config: ChartConfig;
 
-    const config: ChartConfig = { 
-        type: chartType, 
-        title: chartTitle, // Título interno do gráfico
-        barLabel,  
-        lineLabel: showLineData ? lineLabel : undefined, 
-        data: cleanData 
-    };
+    if (isJsonMode) {
+        try {
+            config = JSON.parse(jsonInput);
+        } catch (e) {
+            alert('Erro no JSON do Gráfico. Verifique a sintaxe.');
+            return;
+        }
+    } else {
+        // Se a opção de linha estiver desativada, limpamos o lineValue para não sujar o gráfico
+        const cleanData = builderRows.map(row => {
+            const { lineValue, ...rest } = row;
+            if (showLineData) {
+                return row;
+            }
+            return rest; // Retorna sem lineValue
+        });
+
+        config = { 
+            type: chartType, 
+            title: chartTitle, // Título interno do gráfico
+            barLabel,  
+            lineLabel: showLineData ? lineLabel : undefined, 
+            data: cleanData 
+        };
+    }
     
     const finalReport = {
       ...report,
@@ -220,6 +243,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setBarLabel('Realizado');
       setLineLabel('Meta');
       setShowLineData(false);
+      setIsJsonMode(false);
+      setJsonInput('');
       setProgress(0); setProgressHistory([]);
     }
   };
@@ -248,6 +273,63 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         setReport({...report, riscos: {...report.riscos, tipos: newTypes}});
         setCustomRiskInput('');
         setIsAddingCustomRisk(false);
+    }
+  };
+
+  // Função para manipular upload de Excel (Passo 5)
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      
+      reader.onload = (evt) => {
+        const bstr = evt.target?.result;
+        const wb = read(bstr, { type: 'binary' });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = utils.sheet_to_json(ws, { header: 1 }); // Array of Arrays
+
+        // Mapeamento de Status e Tendência
+        const statusMap: Record<string, 'green' | 'yellow' | 'red'> = {
+            'v': 'green', 'verde': 'green',
+            'a': 'yellow', 'amarelo': 'yellow',
+            'red': 'red', 'vermelho': 'red', 'r': 'red'
+        };
+
+        const trendMap: Record<string, 'up' | 'stable' | 'down'> = {
+            'c': 'up', 'crescimento': 'up',
+            'e': 'stable', 'estavel': 'stable', 'estável': 'stable',
+            'q': 'down', 'queda': 'down'
+        };
+        
+        // Pular cabeçalho (assumindo que a linha 1 é cabeçalho se tiver texto)
+        const rows = data.slice(1).map((row: any) => {
+             // Estrutura esperada:
+             // 0: Indicador, 1: Resultado, 2: Meta, 3: Sinal (v/a/red), 4: Tendencia (c/e/q), 5: Fonte
+             return {
+                 nome: row[0] || '',
+                 resultado: row[1] || '',
+                 meta: row[2] || '',
+                 status: statusMap[String(row[3]).toLowerCase()] || 'green',
+                 tendencia: trendMap[String(row[4]).toLowerCase()] || 'stable',
+                 fonte: row[5] || ''
+             };
+        }).filter(r => r.nome); // Remove linhas vazias
+
+        if (rows.length > 0) {
+            setReport(prev => ({
+                ...prev,
+                indicadoresChave: [...prev.indicadoresChave, ...rows]
+            }));
+            alert(`${rows.length} indicadores importados com sucesso!`);
+        } else {
+            alert('Nenhum dado válido encontrado na planilha.');
+        }
+      };
+      
+      reader.readAsBinaryString(file);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -482,113 +564,155 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
                 {formStep === 3 && (
                     <div className="space-y-8">
-                        <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">3. Dados e Visualização</h3>
+                        <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                            <h3 className="text-2xl font-black text-white">3. Dados e Visualização</h3>
+                            <button 
+                                onClick={() => {
+                                    if (!isJsonMode) {
+                                        // Ao ativar, popula com o estado atual do builder se o JSON estiver vazio ou desatualizado
+                                        // Mas para simplificar, geramos o JSON baseado no estado atual
+                                        const cleanData = builderRows.map(row => {
+                                            const { lineValue, ...rest } = row;
+                                            return showLineData ? row : rest;
+                                        });
+                                        const currentConfig = { 
+                                            type: chartType, 
+                                            title: chartTitle, 
+                                            barLabel,  
+                                            lineLabel: showLineData ? lineLabel : undefined, 
+                                            data: cleanData 
+                                        };
+                                        setJsonInput(JSON.stringify(currentConfig, null, 2));
+                                    }
+                                    setIsJsonMode(!isJsonMode);
+                                }}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${isJsonMode ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'}`}
+                            >
+                                <Code size={16} /> {isJsonMode ? 'Voltar ao Assistente' : 'Modo Avançado (JSON)'}
+                            </button>
+                        </div>
                         
-                        <div className="grid md:grid-cols-2 gap-6">
-                             <div className="space-y-2">
-                                 <label className="text-[10px] font-black text-slate-500 uppercase">Título do Gráfico (Legenda Interna)</label>
-                                 <input 
-                                     value={chartTitle} 
-                                     onChange={e => setChartTitle(e.target.value)} 
-                                     className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white font-bold" 
-                                     placeholder="Ex: Evolução Mensal"
-                                 />
-                                 <p className="text-[10px] text-slate-600">Este título aparecerá dentro da área do gráfico.</p>
-                             </div>
-                             
-                             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
-                                <label className="text-[10px] font-black text-slate-500 uppercase block mb-3">Tipo de Visualização</label>
-                                <div className="flex gap-3">
-                                    {[
-                                        {id: 'bar', label: 'Barras', icon: BarChart},
-                                        {id: 'line', label: 'Linha', icon: LineChart},
-                                        {id: 'pie', label: 'Pizza', icon: PieChart},
-                                    ].map(t => (
-                                        <button 
-                                            key={t.id} 
-                                            onClick={() => setChartType(t.id as any)}
-                                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold uppercase transition-all ${chartType === t.id ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-white'}`}
-                                        >
-                                            <t.icon size={16}/> {t.label}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-between items-center py-4 border-t border-b border-slate-800">
-                             <span className="text-xs font-bold text-slate-400 flex items-center gap-2"><TrendingUp size={16}/> Adicionar Linha de Comparativo/Meta?</span>
-                             <button 
-                                onClick={() => setShowLineData(!showLineData)}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${showLineData ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-slate-900 text-slate-600 border border-slate-800'}`}
-                             >
-                                 {showLineData ? <ToggleRight size={20}/> : <ToggleLeft size={20}/>}
-                                 {showLineData ? 'Ativado' : 'Desativado'}
-                             </button>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-6">
-                            <div className="space-y-2">
-                                <label className="text-[10px] font-black text-emerald-400 uppercase">Legenda da Barra (Principal)</label>
-                                <input 
-                                    value={barLabel} 
-                                    onChange={e => setBarLabel(e.target.value)} 
-                                    className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white text-xs font-bold" 
-                                    placeholder="Ex: Realizado"
-                                />
-                            </div>
-                            {showLineData && (
-                                <div className="space-y-2 animate-in fade-in slide-in-from-left-4">
-                                    <label className="text-[10px] font-black text-amber-400 uppercase">Legenda da Linha (Meta/Secundário)</label>
-                                    <input 
-                                        value={lineLabel} 
-                                        onChange={e => setLineLabel(e.target.value)} 
-                                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white text-xs font-bold" 
-                                        placeholder="Ex: Meta"
+                        {isJsonMode ? (
+                            <div className="space-y-4 animate-in fade-in">
+                                <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800">
+                                    <p className="text-sm text-slate-400 mb-2">Edite o JSON de configuração diretamente. Use isso para gráficos complexos.</p>
+                                    <textarea 
+                                        value={jsonInput} 
+                                        onChange={e => setJsonInput(e.target.value)}
+                                        className="w-full h-96 bg-slate-950 font-mono text-xs text-green-400 p-4 rounded-xl border border-slate-800 outline-none focus:border-emerald-500"
+                                        spellCheck={false}
                                     />
                                 </div>
-                            )}
-                        </div>
-
-                        <div className="space-y-4">
-                            <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontos de Dados</h4>
-                            <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
-                                {builderRows.map((r, i) => (
-                                <div key={i} className="flex gap-2 mb-2 items-center">
-                                    <div className="flex-1 min-w-[100px]">
-                                         <input value={r.label} onChange={e => { const n = [...builderRows]; n[i].label = e.target.value; setBuilderRows(n); }} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-xs" placeholder="Rótulo (Ex: Jan)" />
-                                    </div>
-                                    <div className="w-32">
-                                         <input 
-                                            type="text" 
-                                            value={formatCurrency(r.barValue || 0)} 
-                                            onChange={e => { const n = [...builderRows]; n[i].barValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
-                                            className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 text-xs font-bold text-right" 
-                                            placeholder="Valor" 
-                                         />
-                                    </div>
-                                    {/* Opção para Linha/Meta */}
-                                    {showLineData && (
-                                        <div className="w-32 animate-in fade-in slide-in-from-right-4">
-                                             <input 
-                                                type="text" 
-                                                value={formatCurrency(r.lineValue || 0)} 
-                                                onChange={e => { const n = [...builderRows]; n[i].lineValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
-                                                className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-amber-400 text-xs font-bold text-right" 
-                                                placeholder="Meta/Linha" 
-                                             />
-                                        </div>
-                                    )}
-
-                                    <div className="relative w-10 h-10 overflow-hidden rounded-xl border border-slate-800 shrink-0">
-                                        <input type="color" value={r.color || '#10b981'} onChange={e => { const n = [...builderRows]; n[i].color = e.target.value; setBuilderRows(n); }} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
-                                    </div>
-                                    <button onClick={() => setBuilderRows(builderRows.filter((_, idx) => idx !== i))} className="p-2 text-slate-700 hover:text-red-500"><X size={18}/></button>
-                                </div>
-                                ))}
-                                <button onClick={() => setBuilderRows([...builderRows, {label: '', barValue: 0, lineValue: 0, color: '#10b981'}])} className="text-[10px] font-black text-emerald-400 mt-2 uppercase flex items-center gap-1"><Plus size={14}/> Adicionar Ponto</button>
                             </div>
-                        </div>
+                        ) : (
+                            <>
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase">Título do Gráfico (Legenda Interna)</label>
+                                    <input 
+                                        value={chartTitle} 
+                                        onChange={e => setChartTitle(e.target.value)} 
+                                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white font-bold" 
+                                        placeholder="Ex: Evolução Mensal"
+                                    />
+                                    <p className="text-[10px] text-slate-600">Este título aparecerá dentro da área do gráfico.</p>
+                                </div>
+                                
+                                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
+                                    <label className="text-[10px] font-black text-slate-500 uppercase block mb-3">Tipo de Visualização</label>
+                                    <div className="flex gap-3">
+                                        {[
+                                            {id: 'bar', label: 'Barras', icon: BarChart},
+                                            {id: 'line', label: 'Linha', icon: LineChart},
+                                            {id: 'pie', label: 'Pizza', icon: PieChart},
+                                        ].map(t => (
+                                            <button 
+                                                key={t.id} 
+                                                onClick={() => setChartType(t.id as any)}
+                                                className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold uppercase transition-all ${chartType === t.id ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-white'}`}
+                                            >
+                                                <t.icon size={16}/> {t.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-between items-center py-4 border-t border-b border-slate-800">
+                                <span className="text-xs font-bold text-slate-400 flex items-center gap-2"><TrendingUp size={16}/> Adicionar Linha de Comparativo/Meta?</span>
+                                <button 
+                                    onClick={() => setShowLineData(!showLineData)}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${showLineData ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-slate-900 text-slate-600 border border-slate-800'}`}
+                                >
+                                    {showLineData ? <ToggleRight size={20}/> : <ToggleLeft size={20}/>}
+                                    {showLineData ? 'Ativado' : 'Desativado'}
+                                </button>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-emerald-400 uppercase">Legenda da Barra (Principal)</label>
+                                    <input 
+                                        value={barLabel} 
+                                        onChange={e => setBarLabel(e.target.value)} 
+                                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white text-xs font-bold" 
+                                        placeholder="Ex: Realizado"
+                                    />
+                                </div>
+                                {showLineData && (
+                                    <div className="space-y-2 animate-in fade-in slide-in-from-left-4">
+                                        <label className="text-[10px] font-black text-amber-400 uppercase">Legenda da Linha (Meta/Secundário)</label>
+                                        <input 
+                                            value={lineLabel} 
+                                            onChange={e => setLineLabel(e.target.value)} 
+                                            className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white text-xs font-bold" 
+                                            placeholder="Ex: Meta"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-4">
+                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontos de Dados</h4>
+                                <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
+                                    {builderRows.map((r, i) => (
+                                    <div key={i} className="flex gap-2 mb-2 items-center">
+                                        <div className="flex-1 min-w-[100px]">
+                                            <input value={r.label} onChange={e => { const n = [...builderRows]; n[i].label = e.target.value; setBuilderRows(n); }} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-xs" placeholder="Rótulo (Ex: Jan)" />
+                                        </div>
+                                        <div className="w-32">
+                                            <input 
+                                                type="text" 
+                                                value={formatCurrency(r.barValue || 0)} 
+                                                onChange={e => { const n = [...builderRows]; n[i].barValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
+                                                className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 text-xs font-bold text-right" 
+                                                placeholder="Valor" 
+                                            />
+                                        </div>
+                                        {/* Opção para Linha/Meta */}
+                                        {showLineData && (
+                                            <div className="w-32 animate-in fade-in slide-in-from-right-4">
+                                                <input 
+                                                    type="text" 
+                                                    value={formatCurrency(r.lineValue || 0)} 
+                                                    onChange={e => { const n = [...builderRows]; n[i].lineValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
+                                                    className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-amber-400 text-xs font-bold text-right" 
+                                                    placeholder="Meta/Linha" 
+                                                />
+                                            </div>
+                                        )}
+
+                                        <div className="relative w-10 h-10 overflow-hidden rounded-xl border border-slate-800 shrink-0">
+                                            <input type="color" value={r.color || '#10b981'} onChange={e => { const n = [...builderRows]; n[i].color = e.target.value; setBuilderRows(n); }} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                                        </div>
+                                        <button onClick={() => setBuilderRows(builderRows.filter((_, idx) => idx !== i))} className="p-2 text-slate-700 hover:text-red-500"><X size={18}/></button>
+                                    </div>
+                                    ))}
+                                    <button onClick={() => setBuilderRows([...builderRows, {label: '', barValue: 0, lineValue: 0, color: '#10b981'}])} className="text-[10px] font-black text-emerald-400 mt-2 uppercase flex items-center gap-1"><Plus size={14}/> Adicionar Ponto</button>
+                                </div>
+                            </div>
+                            </>
+                        )}
                     </div>
                 )}
                 {formStep === 4 && (
@@ -612,14 +736,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 )}
                 {formStep === 5 && (
                     <div className="space-y-8">
-                    <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">5. Informações do Indicador</h3>
+                    <div className="flex justify-between items-center border-b border-slate-800 pb-4">
+                        <h3 className="text-2xl font-black text-white">5. Informações do Indicador</h3>
+                        <div className="flex items-center gap-2">
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                onChange={handleFileUpload} 
+                                accept=".xlsx, .xls" 
+                                className="hidden" 
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-xs font-black uppercase transition-all shadow-lg shadow-green-900/20"
+                            >
+                                <FileSpreadsheet size={16} /> Importar Excel (.xlsx)
+                            </button>
+                        </div>
+                    </div>
+                    
                     <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
                         <table className="w-full text-xs text-left">
                             <thead className="bg-slate-950 text-slate-500 font-black uppercase">
                             <tr>
                                 <th className="p-4">Indicador</th>
                                 <th className="p-4">Resultado</th>
-                                <th className="p-4">Meta</th>
+                                <th className="p-4">Meta (2ª métrica)</th>
                                 <th className="p-4">Sinal</th>
                                 <th className="p-4">Tendência</th>
                                 <th className="p-4">Fonte</th>
