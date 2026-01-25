@@ -167,6 +167,74 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
         // Verifica se realmente existe dado de linha para desenhar
         const hasLineData = processedData.some((d: any) => d.lineValue !== undefined && d.lineValue !== null);
 
+        // -- RENDERIZAÇÃO ESPECÍFICA BASEADA NO TIPO --
+        
+        // 1. PIZZA
+        if (type === 'pie') {
+             return (
+              <PieChart>
+                 <Pie
+                  data={processedData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
+                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+                    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
+                    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
+                    return percent > 0.05 ? (
+                      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
+                        {`${(percent * 100).toFixed(0)}%`}
+                      </text>
+                    ) : null;
+                  }}
+                  outerRadius={80}
+                  dataKey="barValue" // Usa o valor principal
+                  nameKey="label"
+                >
+                  {processedData.map((entry: any, index: number) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.2)" />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+                <Legend />
+              </PieChart>
+            );
+        }
+
+        // 2. LINHA (Se selecionado Linha, transformamos o barValue em Linha Principal)
+        if (type === 'line') {
+             return (
+                <ComposedChart 
+                    data={processedData} 
+                    margin={commonMargin}
+                >
+                  <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="label" scale="point" padding={{ left: 60, right: 60 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} tickCount={5} interval={0} />
+                  <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+                  <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                  
+                  {/* Renderiza o valor principal como Linha ao invés de Barra */}
+                  <Line 
+                    type="monotone"
+                    dataKey="barValue" 
+                    name={barLabel || "Valor"} 
+                    stroke={mainColor || '#10b981'} 
+                    strokeWidth={3} 
+                    dot={{ r: 4 }} 
+                    activeDot={{ r: 6 }}
+                  />
+                  
+                  {/* Se houver linha secundária (Meta), renderiza também */}
+                  {hasLineData && (
+                    <Line type="monotone" dataKey="lineValue" name={lineLabel || "Meta"} stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} strokeDasharray="5 5" />
+                  )}
+                </ComposedChart>
+            );
+        }
+
+        // 3. BARRA (Default - ComposedChart Misto)
         return (
             <ComposedChart 
                 data={processedData} 
