@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown, Columns } from 'lucide-react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown, Columns, Layers } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
 import { read, utils } from 'xlsx';
@@ -68,6 +68,14 @@ const handleCurrencyInput = (value: string): number => {
 };
 // -----------------------------
 
+// Interface auxiliar para o State de Múltiplas Linhas
+interface LineSeriesState {
+  id: string; // Para manipulação interna
+  label: string;
+  color: string;
+  data: Array<{ x: string; y: number }>;
+}
+
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
   isOpen, onClose, posts, onAddPost, onEditPost, onDeletePost
 }) => {
@@ -100,11 +108,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [semaforoGeral, setSemaforoGeral] = useState<'green'|'yellow'|'red'>('green');
   const [chartType, setChartType] = useState<'bar'|'line'|'pie'>('bar');
   
-  // Labels Customizados para o Gráfico
+  // Labels Customizados para o Gráfico (BARRAS)
   const [barLabel, setBarLabel] = useState('Realizado');
   const [lineLabel, setLineLabel] = useState('Meta');
 
-  // Controle de exibição da coluna de Linha
+  // Controle de exibição da coluna de Linha (BARRAS)
   const [showLineData, setShowLineData] = useState(false);
 
   // JSON Mode State (Passo 3)
@@ -119,8 +127,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [progress, setProgress] = useState(0);
   const [progressHistory, setProgressHistory] = useState<ProgressUpdate[]>([]);
   
-  // Builder rows: Agora suporta barValue e lineValue
+  // Builder rows (BARRAS): Agora suporta barValue e lineValue
   const [builderRows, setBuilderRows] = useState<any[]>([{ label: 'Mês 1', barValue: 0, lineValue: 0, color: '#10b981' }]);
+
+  // Builder Series (LINHAS): State para múltiplas séries
+  const [lineSeries, setLineSeries] = useState<LineSeriesState[]>([
+    { 
+      id: '1', 
+      label: 'Série 1', 
+      color: '#10b981', 
+      data: [{ x: 'Jan', y: 0 }, { x: 'Fev', y: 0 }] 
+    }
+  ]);
 
   // Risco Personalizado
   const [customRiskInput, setCustomRiskInput] = useState('');
@@ -167,7 +185,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     setLineLabel(post.chartConfig.lineLabel || 'Meta');
     
     // Lógica para determinar se a coluna extra deve ser mostrada em posts antigos
-    // Se showExtraColumn é undefined, mas existe algum dado em 'extra' ou um cabeçalho definido diferente do padrão, mostra.
     const shouldShowExtra = post.report.showExtraColumn !== undefined 
         ? post.report.showExtraColumn 
         : (!!post.report.headerExtra || post.report.indicadoresChave.some((i: any) => i.extra));
@@ -176,7 +193,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         ...INITIAL_REPORT, 
         ...post.report,
         showExtraColumn: shouldShowExtra,
-        // Garante que o layout exista mesmo em posts antigos
         layout: post.report.layout || INITIAL_REPORT.layout
     });
     setProgress(post.progress || 0);
@@ -185,9 +201,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     // Inicializa JSON Mode se necessário
     setJsonInput(JSON.stringify(post.chartConfig, null, 2));
 
-    // Adaptação para carregar dados antigos ou novos
-    if (Array.isArray(post.chartConfig.data)) {
-        // Detecta se existe dado de linha em algum ponto
+    // Lógica de Carregamento de Dados (Barras vs Linhas)
+    if (post.chartConfig.multiLineSeries) {
+        // Carrega séries de linhas
+        const loadedSeries = post.chartConfig.multiLineSeries.map((s, idx) => ({
+            id: String(idx),
+            label: s.label,
+            color: s.color,
+            data: s.data
+        }));
+        setLineSeries(loadedSeries);
+        // Limpa builder de barras para evitar confusão, embora não seja estritamente necessário
+        setBuilderRows([]); 
+    } else if (Array.isArray(post.chartConfig.data)) {
+        // Carrega builder de barras/pizza (Legacy ou Padrão)
         const hasLine = post.chartConfig.data.some((d: any) => d.lineValue !== undefined && d.lineValue !== null && d.lineValue !== '');
         setShowLineData(hasLine);
 
@@ -198,6 +225,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             lineValue: d.lineValue || 0
         }));
         setBuilderRows(loadedData);
+        // Reseta linhas para default
+        setLineSeries([{ id: '1', label: 'Série 1', color: '#10b981', data: [{ x: 'Jan', y: 0 }] }]);
     } else {
         setBuilderRows([]);
         setShowLineData(false);
@@ -205,7 +234,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     
     setActiveTab('add');
     setFormStep(1);
-    setIsJsonMode(false); // Default to UI mode on edit open
+    setIsJsonMode(false); 
   };
 
   const handleSubmit = async () => {
@@ -219,22 +248,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             return;
         }
     } else {
-        // Se a opção de linha estiver desativada, limpamos o lineValue para não sujar o gráfico
-        const cleanData = builderRows.map(row => {
-            const { lineValue, ...rest } = row;
-            if (showLineData) {
-                return row;
-            }
-            return rest; // Retorna sem lineValue
-        });
+        // Constrói o Config baseado no Tipo selecionado
+        if (chartType === 'line') {
+             // Modo Múltiplas Linhas
+             const cleanedSeries = lineSeries.map(s => ({
+                 label: s.label,
+                 color: s.color,
+                 data: s.data
+             }));
 
-        config = { 
-            type: chartType, 
-            title: chartTitle, // Título interno do gráfico
-            barLabel,  
-            lineLabel: showLineData ? lineLabel : undefined, 
-            data: cleanData 
-        };
+             config = {
+                 type: 'line',
+                 title: chartTitle,
+                 multiLineSeries: cleanedSeries,
+                 data: [] // Deixa vazio para não confundir o renderer legado
+             };
+        } else {
+            // Modo Barras/Pizza
+            const cleanData = builderRows.map(row => {
+                const { lineValue, ...rest } = row;
+                if (showLineData) {
+                    return row;
+                }
+                return rest; 
+            });
+
+            config = { 
+                type: chartType, 
+                title: chartTitle, 
+                barLabel,  
+                lineLabel: showLineData ? lineLabel : undefined, 
+                data: cleanData 
+            };
+        }
     }
     
     const finalReport = {
@@ -243,7 +289,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     };
     
     const extra = { 
-        indicatorName, // Nome principal do indicador
+        indicatorName, 
         responsavel, 
         fonteOficial, 
         recorrencia, 
@@ -267,6 +313,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setReport(INITIAL_REPORT); 
       setActiveTab('list');
       setBuilderRows([{ label: 'Mês 1', barValue: 0, lineValue: 0, color: '#10b981' }]); 
+      setLineSeries([{ id: '1', label: 'Série 1', color: '#10b981', data: [{ x: 'Jan', y: 0 }] }]);
       setBarLabel('Realizado');
       setLineLabel('Meta');
       setShowLineData(false);
@@ -303,7 +350,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Função para manipular upload de Excel (Passo 5)
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -314,9 +360,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         const wb = read(bstr, { type: 'binary' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
-        const data = utils.sheet_to_json(ws, { header: 1 }); // Array of Arrays
+        const data = utils.sheet_to_json(ws, { header: 1 }); 
 
-        // Mapeamento de Status e Tendência
         const statusMap: Record<string, 'green' | 'yellow' | 'red'> = {
             'v': 'green', 'verde': 'green',
             'a': 'yellow', 'amarelo': 'yellow',
@@ -331,34 +376,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         
         let foundExtraColumn = false;
 
-        // Pular cabeçalho (assumindo que a linha 1 é cabeçalho se tiver texto)
         const rows = data.slice(1).map((row: any) => {
              const extraVal = row[3] || '';
              if (extraVal) foundExtraColumn = true;
-
-             // Estrutura esperada Atualizada:
-             // 0: Indicador
-             // 1: Resultado
-             // 2: Meta
-             // 3: Extra (NOVO!)
-             // 4: Sinal (v/a/red)
-             // 5: Tendencia (c/e/q)
-             // 6: Fonte
              return {
                  nome: row[0] || '',
                  resultado: row[1] || '',
                  meta: row[2] || '',
-                 extra: extraVal, // Captura a nova coluna
+                 extra: extraVal, 
                  status: statusMap[String(row[4]).toLowerCase()] || 'green',
                  tendencia: trendMap[String(row[5]).toLowerCase()] || 'stable',
                  fonte: row[6] || ''
              };
-        }).filter(r => r.nome); // Remove linhas vazias
+        }).filter(r => r.nome); 
 
         if (rows.length > 0) {
             setReport(prev => ({
                 ...prev,
-                showExtraColumn: foundExtraColumn || prev.showExtraColumn, // Ativa a coluna se encontrou dados
+                showExtraColumn: foundExtraColumn || prev.showExtraColumn, 
                 indicadoresChave: [...prev.indicadoresChave, ...rows]
             }));
             alert(`${rows.length} indicadores importados com sucesso! ${foundExtraColumn ? '(Coluna Extra identificada e ativada)' : ''}`);
@@ -368,60 +403,87 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       };
       
       reader.readAsBinaryString(file);
-      // Reset input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
   const filteredPosts = posts.filter(p => filterTopic === 'all' || p.topicId === filterTopic);
+  
+  // Helpers para Múltiplas Linhas
+  const addLineSeries = () => {
+      setLineSeries([...lineSeries, {
+          id: Date.now().toString(),
+          label: `Série ${lineSeries.length + 1}`,
+          color: '#3b82f6',
+          data: [{ x: 'Jan', y: 0 }]
+      }]);
+  };
+
+  const removeLineSeries = (index: number) => {
+      if (lineSeries.length > 1) {
+          setLineSeries(lineSeries.filter((_, i) => i !== index));
+      }
+  };
+
+  const addPointToSeries = (seriesIndex: number) => {
+      const newSeries = [...lineSeries];
+      newSeries[seriesIndex].data.push({ x: 'Novo', y: 0 });
+      setLineSeries(newSeries);
+  };
+
+  const removePointFromSeries = (seriesIndex: number, pointIndex: number) => {
+      const newSeries = [...lineSeries];
+      if (newSeries[seriesIndex].data.length > 1) {
+          newSeries[seriesIndex].data = newSeries[seriesIndex].data.filter((_, i) => i !== pointIndex);
+          setLineSeries(newSeries);
+      }
+  };
+
+  const updateSeriesField = (index: number, field: keyof LineSeriesState, value: any) => {
+      const newSeries = [...lineSeries];
+      (newSeries[index] as any)[field] = value;
+      setLineSeries(newSeries);
+  };
+
+  const updateSeriesPoint = (seriesIndex: number, pointIndex: number, field: 'x' | 'y', value: any) => {
+      const newSeries = [...lineSeries];
+      newSeries[seriesIndex].data[pointIndex][field] = value;
+      setLineSeries(newSeries);
+  };
 
   // Drag and Drop Logic
   const handleSort = async () => {
     if (dragItem.current === null || dragOverItem.current === null) return;
-    
     const draggedIdx = dragItem.current;
     const overIdx = dragOverItem.current;
-    
     if (draggedIdx === overIdx) return;
-
-    // Reseta estado visual imediatamente
     dragItem.current = null;
     dragOverItem.current = null;
     setIsDragging(false);
-
-    // ESTRATÉGIA DE ORDENAÇÃO
     let updates: Post[] = [];
-
     if (filterTopic === 'all') {
-        // MODO GLOBAL: Reordena a lista completa e renumera índices sequencialmente (0, 1, 2...)
         const _posts = [...posts];
-        const draggedContent = _posts.splice(draggedIdx, 1)[0];
-        _posts.splice(overIdx, 0, draggedContent);
-
-        for (let i = 0; i < _posts.length; i++) {
-            if (_posts[i].order !== i) {
-                updates.push({ ..._posts[i], order: i, lastEditor: currentUser });
+        // Destructure safely to ensure we get an element and type is inferred correctly
+        const [draggedContent] = _posts.splice(draggedIdx, 1);
+        if (draggedContent) {
+            _posts.splice(overIdx, 0, draggedContent);
+            for (let i = 0; i < _posts.length; i++) {
+                if (_posts[i].order !== i) updates.push({ ..._posts[i], order: i, lastEditor: currentUser });
             }
         }
     } else {
-        // MODO FILTRADO: Estratégia "Troca de Slots"
         const currentVisible = [...filteredPosts];
         const availableSlots = currentVisible.map(p => p.order !== undefined ? p.order : 0);
-        
-        const draggedContent = currentVisible.splice(draggedIdx, 1)[0];
-        currentVisible.splice(overIdx, 0, draggedContent);
-        
-        for (let i = 0; i < currentVisible.length; i++) {
-            const p = currentVisible[i];
-            const targetOrder = availableSlots[i];
-            
-            if (p.order !== targetOrder) {
-                updates.push({ ...p, order: targetOrder, lastEditor: currentUser });
+        const [draggedContent] = currentVisible.splice(draggedIdx, 1);
+        if (draggedContent) {
+            currentVisible.splice(overIdx, 0, draggedContent);
+            for (let i = 0; i < currentVisible.length; i++) {
+                const p = currentVisible[i];
+                const targetOrder = availableSlots[i];
+                if (p.order !== targetOrder) updates.push({ ...p, order: targetOrder, lastEditor: currentUser });
             }
         }
     }
-
-    // Executa updates em série para garantir integridade
     for (const updatedPost of updates) {
         await onEditPost(updatedPost.id, updatedPost.topicId, updatedPost.description, updatedPost.chartConfig, {
             ...updatedPost,
@@ -435,7 +497,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   if (!isAuthenticated) {
-    return (
+     return (
       <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4">
         <div className="bg-slate-900 border border-slate-700 rounded-3xl p-8 md:p-12 w-full max-w-sm text-center space-y-8 shadow-2xl">
           <div className="w-20 h-20 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20"><Lock className="text-emerald-400" size={32}/></div>
@@ -500,9 +562,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
           <div className="flex-1 overflow-y-auto p-4 md:p-10 custom-scrollbar">
             {activeTab === 'add' ? (
               <div className="max-w-4xl mx-auto space-y-10 animate-in fade-in duration-500">
-                {/* ... (Conteúdo dos steps de 1 a 9 mantido igual, apenas omitido para brevidade) ... */}
                 
+                {/* Steps 1 e 2 mantidos implicitamente iguais, vamos direto ao Step 3 */}
                 {formStep === 1 && (
+                  // ... (Mantido igual ao original)
                   <div className="space-y-8">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">1. Definição Estratégica</h3>
                     <div className="grid md:grid-cols-2 gap-6">
@@ -603,6 +666,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                         </div>
                     </div>
                 )}
+
                 {formStep === 3 && (
                     <div className="space-y-8">
                         <div className="flex justify-between items-center border-b border-slate-800 pb-4">
@@ -610,8 +674,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                             <button 
                                 onClick={() => {
                                     if (!isJsonMode) {
-                                        // Ao ativar, popula com o estado atual do builder se o JSON estiver vazio ou desatualizado
-                                        // Mas para simplificar, geramos o JSON baseado no estado atual
                                         const cleanData = builderRows.map(row => {
                                             const { lineValue, ...rest } = row;
                                             return showLineData ? row : rest;
@@ -619,9 +681,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         const currentConfig = { 
                                             type: chartType, 
                                             title: chartTitle, 
-                                            barLabel,  
-                                            lineLabel: showLineData ? lineLabel : undefined, 
-                                            data: cleanData 
+                                            barLabel: chartType === 'bar' ? barLabel : undefined,  
+                                            lineLabel: chartType === 'bar' && showLineData ? lineLabel : undefined, 
+                                            data: chartType === 'line' ? [] : cleanData, // Se for linha, usa multiLineSeries
+                                            multiLineSeries: chartType === 'line' ? lineSeries.map(s => ({ label: s.label, color: s.color, data: s.data })) : undefined
                                         };
                                         setJsonInput(JSON.stringify(currentConfig, null, 2));
                                     }
@@ -656,7 +719,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                         className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white font-bold" 
                                         placeholder="Ex: Evolução Mensal"
                                     />
-                                    <p className="text-[10px] text-slate-600">Este título aparecerá dentro da área do gráfico.</p>
                                 </div>
                                 
                                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
@@ -679,83 +741,174 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex justify-between items-center py-4 border-t border-b border-slate-800">
-                                <span className="text-xs font-bold text-slate-400 flex items-center gap-2"><TrendingUp size={16}/> Adicionar Linha de Comparativo/Meta?</span>
-                                <button 
-                                    onClick={() => setShowLineData(!showLineData)}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${showLineData ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-slate-900 text-slate-600 border border-slate-800'}`}
-                                >
-                                    {showLineData ? <ToggleRight size={20}/> : <ToggleLeft size={20}/>}
-                                    {showLineData ? 'Ativado' : 'Desativado'}
-                                </button>
-                            </div>
-
-                            <div className="grid md:grid-cols-2 gap-6">
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-emerald-400 uppercase">Legenda da Barra (Principal)</label>
-                                    <input 
-                                        value={barLabel} 
-                                        onChange={e => setBarLabel(e.target.value)} 
-                                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white text-xs font-bold" 
-                                        placeholder="Ex: Realizado"
-                                    />
-                                </div>
-                                {showLineData && (
-                                    <div className="space-y-2 animate-in fade-in slide-in-from-left-4">
-                                        <label className="text-[10px] font-black text-amber-400 uppercase">Legenda da Linha (Meta/Secundário)</label>
-                                        <input 
-                                            value={lineLabel} 
-                                            onChange={e => setLineLabel(e.target.value)} 
-                                            className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white text-xs font-bold" 
-                                            placeholder="Ex: Meta"
-                                        />
+                            {/* RENDERIZAÇÃO CONDICIONAL BASEADA NO TIPO DE GRÁFICO */}
+                            
+                            {chartType === 'line' ? (
+                                // --- BUILDER PARA LINHAS (MÚLTIPLAS SÉRIES) ---
+                                <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+                                    <div className="flex justify-between items-center py-4 border-b border-slate-800">
+                                        <h4 className="text-sm font-bold text-emerald-400 flex items-center gap-2"><Layers size={18}/> Séries de Dados</h4>
+                                        <button onClick={addLineSeries} className="text-xs font-black uppercase text-emerald-400 hover:text-emerald-300 bg-emerald-500/10 px-3 py-1.5 rounded-lg border border-emerald-500/20 flex items-center gap-2 transition-all">
+                                            <Plus size={14}/> Nova Série
+                                        </button>
                                     </div>
-                                )}
-                            </div>
+                                    
+                                    <div className="space-y-8">
+                                        {lineSeries.map((series, idx) => (
+                                            <div key={series.id} className="bg-slate-900/50 p-6 rounded-3xl border border-slate-800 relative group">
+                                                <div className="absolute -top-3 left-6 bg-slate-900 px-2 text-[10px] font-black uppercase text-slate-500 tracking-widest border border-slate-800 rounded">
+                                                    Série #{idx + 1}
+                                                </div>
+                                                <button 
+                                                    onClick={() => removeLineSeries(idx)}
+                                                    className="absolute top-4 right-4 p-2 text-slate-700 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                                                    title="Remover Série"
+                                                >
+                                                    <Trash2 size={16}/>
+                                                </button>
 
-                            <div className="space-y-4">
-                                <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontos de Dados</h4>
-                                <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
-                                    {builderRows.map((r, i) => (
-                                    <div key={i} className="flex gap-2 mb-2 items-center">
-                                        <div className="flex-1 min-w-[100px]">
-                                            <input value={r.label} onChange={e => { const n = [...builderRows]; n[i].label = e.target.value; setBuilderRows(n); }} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-xs" placeholder="Rótulo (Ex: Jan)" />
+                                                <div className="grid md:grid-cols-2 gap-4 mb-6">
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-slate-600 uppercase">Nome da Linha</label>
+                                                        <input 
+                                                            value={series.label} 
+                                                            onChange={e => updateSeriesField(idx, 'label', e.target.value)} 
+                                                            className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-sm font-bold" 
+                                                            placeholder="Ex: 2023"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] font-black text-slate-600 uppercase">Cor da Linha</label>
+                                                        <div className="flex items-center gap-3">
+                                                            <input 
+                                                                type="color" 
+                                                                value={series.color} 
+                                                                onChange={e => updateSeriesField(idx, 'color', e.target.value)} 
+                                                                className="w-12 h-12 rounded-xl cursor-pointer bg-transparent border-none" 
+                                                            />
+                                                            <span className="text-xs text-slate-500 uppercase font-mono">{series.color}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <label className="text-[10px] font-black text-slate-600 uppercase block">Pontos (Eixo X / Eixo Y)</label>
+                                                    <div className="space-y-2 pl-4 border-l-2 border-slate-800">
+                                                        {series.data.map((point, pIdx) => (
+                                                            <div key={pIdx} className="flex gap-2 items-center">
+                                                                <input 
+                                                                    value={point.x} 
+                                                                    onChange={e => updateSeriesPoint(idx, pIdx, 'x', e.target.value)}
+                                                                    className="flex-1 bg-slate-950 border border-slate-800 p-2 rounded-lg text-slate-300 text-xs" 
+                                                                    placeholder="Eixo X (ex: Jan)"
+                                                                />
+                                                                <input 
+                                                                    type="text"
+                                                                    value={formatCurrency(point.y)} 
+                                                                    onChange={e => updateSeriesPoint(idx, pIdx, 'y', handleCurrencyInput(e.target.value))}
+                                                                    className="w-24 bg-slate-950 border border-slate-800 p-2 rounded-lg text-emerald-400 text-xs font-bold text-right" 
+                                                                    placeholder="Valor"
+                                                                />
+                                                                <button onClick={() => removePointFromSeries(idx, pIdx)} className="p-1.5 text-slate-700 hover:text-red-500"><X size={14}/></button>
+                                                            </div>
+                                                        ))}
+                                                        <button onClick={() => addPointToSeries(idx)} className="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 mt-2">
+                                                            <Plus size={12}/> Adicionar Ponto
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                // --- BUILDER PADRÃO (BARRAS / PIZZA) ---
+                                <div className="space-y-6 animate-in fade-in">
+                                    {chartType === 'bar' && (
+                                    <>
+                                        <div className="flex justify-between items-center py-4 border-t border-b border-slate-800">
+                                            <span className="text-xs font-bold text-slate-400 flex items-center gap-2"><TrendingUp size={16}/> Adicionar Linha de Comparativo/Meta?</span>
+                                            <button 
+                                                onClick={() => setShowLineData(!showLineData)}
+                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase transition-all ${showLineData ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'bg-slate-900 text-slate-600 border border-slate-800'}`}
+                                            >
+                                                {showLineData ? <ToggleRight size={20}/> : <ToggleLeft size={20}/>}
+                                                {showLineData ? 'Ativado' : 'Desativado'}
+                                            </button>
                                         </div>
-                                        <div className="w-32">
-                                            <input 
-                                                type="text" 
-                                                value={formatCurrency(r.barValue || 0)} 
-                                                onChange={e => { const n = [...builderRows]; n[i].barValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
-                                                className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 text-xs font-bold text-right" 
-                                                placeholder="Valor" 
-                                            />
-                                        </div>
-                                        {/* Opção para Linha/Meta */}
-                                        {showLineData && (
-                                            <div className="w-32 animate-in fade-in slide-in-from-right-4">
+
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-black text-emerald-400 uppercase">Legenda da Barra (Principal)</label>
                                                 <input 
-                                                    type="text" 
-                                                    value={formatCurrency(r.lineValue || 0)} 
-                                                    onChange={e => { const n = [...builderRows]; n[i].lineValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
-                                                    className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-amber-400 text-xs font-bold text-right" 
-                                                    placeholder="Meta/Linha" 
+                                                    value={barLabel} 
+                                                    onChange={e => setBarLabel(e.target.value)} 
+                                                    className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white text-xs font-bold" 
+                                                    placeholder="Ex: Realizado"
                                                 />
                                             </div>
-                                        )}
-
-                                        <div className="relative w-10 h-10 overflow-hidden rounded-xl border border-slate-800 shrink-0">
-                                            <input type="color" value={r.color || '#10b981'} onChange={e => { const n = [...builderRows]; n[i].color = e.target.value; setBuilderRows(n); }} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                                            {showLineData && (
+                                                <div className="space-y-2 animate-in fade-in slide-in-from-left-4">
+                                                    <label className="text-[10px] font-black text-amber-400 uppercase">Legenda da Linha (Meta/Secundário)</label>
+                                                    <input 
+                                                        value={lineLabel} 
+                                                        onChange={e => setLineLabel(e.target.value)} 
+                                                        className="w-full p-3 bg-slate-900 border border-slate-800 rounded-2xl text-white text-xs font-bold" 
+                                                        placeholder="Ex: Meta"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
-                                        <button onClick={() => setBuilderRows(builderRows.filter((_, idx) => idx !== i))} className="p-2 text-slate-700 hover:text-red-500"><X size={18}/></button>
+                                    </>
+                                    )}
+
+                                    <div className="space-y-4">
+                                        <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pontos de Dados</h4>
+                                        <div className="bg-slate-900/40 p-6 rounded-3xl border border-slate-800">
+                                            {builderRows.map((r, i) => (
+                                            <div key={i} className="flex gap-2 mb-2 items-center">
+                                                <div className="flex-1 min-w-[100px]">
+                                                    <input value={r.label} onChange={e => { const n = [...builderRows]; n[i].label = e.target.value; setBuilderRows(n); }} className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-white text-xs" placeholder="Rótulo (Ex: Jan)" />
+                                                </div>
+                                                <div className="w-32">
+                                                    <input 
+                                                        type="text" 
+                                                        value={formatCurrency(r.barValue || 0)} 
+                                                        onChange={e => { const n = [...builderRows]; n[i].barValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
+                                                        className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-emerald-400 text-xs font-bold text-right" 
+                                                        placeholder="Valor" 
+                                                    />
+                                                </div>
+                                                {/* Opção para Linha/Meta */}
+                                                {chartType === 'bar' && showLineData && (
+                                                    <div className="w-32 animate-in fade-in slide-in-from-right-4">
+                                                        <input 
+                                                            type="text" 
+                                                            value={formatCurrency(r.lineValue || 0)} 
+                                                            onChange={e => { const n = [...builderRows]; n[i].lineValue = handleCurrencyInput(e.target.value); setBuilderRows(n); }} 
+                                                            className="w-full bg-slate-950 border border-slate-800 p-3 rounded-xl text-amber-400 text-xs font-bold text-right" 
+                                                            placeholder="Meta/Linha" 
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                <div className="relative w-10 h-10 overflow-hidden rounded-xl border border-slate-800 shrink-0">
+                                                    <input type="color" value={r.color || '#10b981'} onChange={e => { const n = [...builderRows]; n[i].color = e.target.value; setBuilderRows(n); }} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                                                </div>
+                                                <button onClick={() => setBuilderRows(builderRows.filter((_, idx) => idx !== i))} className="p-2 text-slate-700 hover:text-red-500"><X size={18}/></button>
+                                            </div>
+                                            ))}
+                                            <button onClick={() => setBuilderRows([...builderRows, {label: '', barValue: 0, lineValue: 0, color: '#10b981'}])} className="text-[10px] font-black text-emerald-400 mt-2 uppercase flex items-center gap-1"><Plus size={14}/> Adicionar Ponto</button>
+                                        </div>
                                     </div>
-                                    ))}
-                                    <button onClick={() => setBuilderRows([...builderRows, {label: '', barValue: 0, lineValue: 0, color: '#10b981'}])} className="text-[10px] font-black text-emerald-400 mt-2 uppercase flex items-center gap-1"><Plus size={14}/> Adicionar Ponto</button>
                                 </div>
-                            </div>
+                            )}
+
                             </>
                         )}
                     </div>
                 )}
+                
                 {formStep === 4 && (
                     <div className="space-y-6">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">4. Resumo Executivo</h3>
@@ -775,6 +928,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     </div>
                 )}
+                
                 {formStep === 5 && (
                     <div className="space-y-8">
                     <div className="flex justify-between items-center border-b border-slate-800 pb-4">
@@ -912,8 +1066,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     </div>
                 )}
+                
                 {formStep === 6 && (
-                  <div className="space-y-6">
+                    <div className="space-y-6">
                     <h3 className="text-2xl font-black text-white border-b border-slate-800 pb-4">6. Entregas Prioritárias</h3>
                     <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
                        <table className="w-full text-xs text-left">
@@ -1163,6 +1318,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
               </div>
             ) : (
               // Modo Lista (Catálogo)
+              // ... (Mantido igual)
               <div className="space-y-6">
                 <div className="flex justify-between items-end mb-6 px-4">
                     <div>

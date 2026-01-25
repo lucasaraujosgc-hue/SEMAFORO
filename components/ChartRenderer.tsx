@@ -29,11 +29,39 @@ const formatValue = (value: number) => {
 };
 
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
-  const { type, color: mainColor, barLabel, lineLabel, title } = config;
+  const { type, color: mainColor, barLabel, lineLabel, title, multiLineSeries } = config;
 
-  const { processedData, dataKeys, isComplex, complexConfig } = useMemo(() => {
+  const { processedData, dataKeys, isComplex, complexConfig, isMultiLine, multiLineSeriesConfig } = useMemo(() => {
     try {
-      // CASO 0: Formato Complexo
+        // CASO ESPECIAL: Múltiplas Linhas (Estrutura Nova)
+        if (config.multiLineSeries && Array.isArray(config.multiLineSeries) && config.multiLineSeries.length > 0) {
+            // Unifica todos os pontos X de todas as séries para garantir que o eixo X tenha todos os labels
+            const allXLabels = Array.from(new Set(
+                config.multiLineSeries.flatMap(s => s.data.map(d => d.x))
+            ));
+            
+            // Processa os dados para o formato que o Recharts espera: [{ label: 'Jan', 'Serie1': 10, 'Serie2': 20 }]
+            const mergedData = allXLabels.map(label => {
+                const row: any = { label };
+                config.multiLineSeries!.forEach(s => {
+                    const point = s.data.find(d => d.x === label);
+                    if (point) {
+                        row[s.label] = point.y;
+                    }
+                });
+                return row;
+            });
+
+            return {
+                processedData: mergedData,
+                dataKeys: config.multiLineSeries.map(s => s.label),
+                isComplex: false,
+                isMultiLine: true,
+                multiLineSeriesConfig: config.multiLineSeries
+            };
+        }
+
+      // CASO 0: Formato Complexo (Legado)
       if (config.data && !Array.isArray(config.data) && typeof config.data === 'object') {
         const extData = config.data as any; 
         
@@ -122,7 +150,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
         };
       }
 
-      // CASO 3: Formato "Flat" (Simples & Novo AdminPanel)
+      // CASO 3: Formato "Flat" (Simples & Novo AdminPanel - Barras/Pizza)
       if (config.data && Array.isArray(config.data) && config.data.length > 0) {
         const first = config.data[0];
         if (!('values' in first) && !('series' in first)) {
@@ -162,7 +190,32 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
     const commonMargin = { top: 20, right: 30, bottom: 20, left: 50 };
     const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.05)];
 
-    // NOVO: Detecta se é o formato misto do novo AdminPanel (com barValue e lineValue)
+    // 0. Renderização de Múltiplas Linhas (Nova Estrutura)
+    if (isMultiLine && multiLineSeriesConfig) {
+        return (
+            <LineChart data={processedData} margin={commonMargin}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} padding={{ left: 20, right: 20 }} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+                <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
+                <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                {multiLineSeriesConfig.map((series, index) => (
+                    <Line 
+                        key={series.label} 
+                        type="monotone" 
+                        dataKey={series.label} 
+                        name={series.label} 
+                        stroke={series.color || COLORS[index % COLORS.length]} 
+                        strokeWidth={3} 
+                        dot={{ r: 4 }} 
+                        activeDot={{ r: 6 }} 
+                    />
+                ))}
+            </LineChart>
+        );
+    }
+
+    // NOVO: Detecta se é o formato misto do novo AdminPanel (com barValue e lineValue) para Barras/Composed
     if (processedData.length > 0 && (processedData[0].barValue !== undefined || processedData[0].lineValue !== undefined)) {
         // Verifica se realmente existe dado de linha para desenhar
         const hasLineData = processedData.some((d: any) => d.lineValue !== undefined && d.lineValue !== null);
@@ -202,7 +255,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
             );
         }
 
-        // 2. LINHA (Se selecionado Linha, transformamos o barValue em Linha Principal)
+        // 2. LINHA LEGADA (Caso não use multiLineSeries mas use o builder antigo em modo Line)
         if (type === 'line') {
              return (
                 <ComposedChart 
@@ -215,7 +268,6 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                   <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
                   <Legend wrapperStyle={{ paddingTop: '10px' }} />
                   
-                  {/* Renderiza o valor principal como Linha ao invés de Barra */}
                   <Line 
                     type="monotone"
                     dataKey="barValue" 
@@ -226,7 +278,6 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                     activeDot={{ r: 6 }}
                   />
                   
-                  {/* Se houver linha secundária (Meta), renderiza também */}
                   {hasLineData && (
                     <Line type="monotone" dataKey="lineValue" name={lineLabel || "Meta"} stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} strokeDasharray="5 5" />
                   )}

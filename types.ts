@@ -141,6 +141,12 @@ export interface ChartConfig {
   barLabel?: string; // Nome da série de barras (ex: Realizado)
   lineLabel?: string; // Nome da série de linha (ex: Meta)
   data?: any; // Array de objetos { label, value, color }
+  // Nova estrutura para Múltiplas Linhas
+  multiLineSeries?: Array<{
+    label: string;
+    color: string;
+    data: Array<{ x: string; y: number }>;
+  }>;
   series?: any[];
   color?: string; // Cor padrão
   options?: any;
