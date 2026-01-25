@@ -1,3 +1,4 @@
+
 {
   "name": "gestao-indicadores-sgc",
   "private": true,
@@ -17,7 +18,8 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.3",
     "recharts": "^2.12.2",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^18.2.64",
