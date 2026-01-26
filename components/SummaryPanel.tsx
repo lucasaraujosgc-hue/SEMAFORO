@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Filter, Search, User, Calendar, Target, Activity, LayoutDashboard, ArrowLeft } from 'lucide-react';
+import { Filter, Search, User, Calendar, Target, Activity, LayoutDashboard, ArrowLeft, FileText, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { Post, TopicId } from '../types';
 import { TOPICS } from '../constants';
 import { Link } from 'react-router-dom';
@@ -13,6 +13,10 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
   const [filterTopic, setFilterTopic] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // States para controle do Tooltip Inteligente
+  const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<'top' | 'bottom'>('bottom');
 
   const filteredPosts = posts.filter(post => {
     const matchesTopic = filterTopic === 'all' || post.topicId === filterTopic;
@@ -47,6 +51,24 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
       if (status === 'red') return rules?.red || 'Crítico';
       if (status === 'yellow') return rules?.yellow || 'Atenção';
       return rules?.green || 'Normal';
+  };
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>, postId: string) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const estimatedCardHeight = 550; // Altura estimada do card expandido
+
+      // Se o espaço abaixo for menor que a altura do card, exibe para cima
+      if (spaceBelow < estimatedCardHeight) {
+          setTooltipPosition('top');
+      } else {
+          setTooltipPosition('bottom');
+      }
+      setHoveredPostId(postId);
+  };
+
+  const handleMouseLeave = () => {
+      setHoveredPostId(null);
   };
 
   return (
@@ -128,9 +150,14 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                 
                 <div className="grid gap-2">
                     {group.posts.map(post => (
-                        <div key={post.id} className="relative group perspective-1000">
+                        <div 
+                            key={post.id} 
+                            className="relative"
+                            onMouseEnter={(e) => handleMouseEnter(e, post.id)}
+                            onMouseLeave={handleMouseLeave}
+                        >
                             {/* Linha do Indicador */}
-                            <div className="bg-slate-900/40 hover:bg-slate-800 border border-slate-800/50 hover:border-slate-700 p-4 rounded-xl flex items-center justify-between transition-all cursor-default group-hover:translate-x-2 duration-300">
+                            <div className="bg-slate-900/40 hover:bg-slate-800 border border-slate-800/50 hover:border-slate-700 p-4 rounded-xl flex items-center justify-between transition-all cursor-default duration-300">
                                 <div className="flex items-center gap-4">
                                     <span className="text-[10px] font-black text-slate-600 w-8">{post.progress}%</span>
                                     <span className="text-sm font-medium text-slate-200">{post.indicatorName || post.chartConfig.title}</span>
@@ -138,55 +165,92 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                                 <div className={`w-3 h-3 rounded-full ${getStatusColor(post.semaforoGeral || 'green')}`}></div>
                             </div>
 
-                            {/* GRID DETALHADO (TOOLTIP) */}
-                            <div className="hidden group-hover:block absolute z-50 right-0 top-full mt-2 w-full md:w-[450px] lg:w-[600px] pointer-events-none group-hover:pointer-events-auto animate-in slide-in-from-top-2 fade-in duration-200">
-                                <div className="bg-[#0f172a] border border-slate-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden p-6 relative">
-                                    {/* Seta decorativa */}
-                                    <div className="absolute -top-2 right-6 w-4 h-4 bg-[#0f172a] border-t border-l border-slate-700 rotate-45"></div>
-                                    
-                                    <div className="flex justify-between items-start mb-6 border-b border-slate-800 pb-4">
-                                        <div>
-                                            <h4 className="text-lg font-black text-white leading-tight mb-1">{post.indicatorName || post.chartConfig.title}</h4>
-                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{post.recorrencia} • {post.responsavel}</span>
+                            {/* GRID DETALHADO (TOOLTIP INTELIGENTE) */}
+                            {hoveredPostId === post.id && (
+                                <div className={`absolute z-50 right-0 w-full md:w-[500px] lg:w-[650px] animate-in fade-in duration-200 ${tooltipPosition === 'top' ? 'bottom-full mb-3 slide-in-from-bottom-2' : 'top-full mt-3 slide-in-from-top-2'}`}>
+                                    <div className="bg-[#0f172a] border border-slate-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden p-6 relative">
+                                        
+                                        {/* Seta decorativa (Posicionada dinamicamente) */}
+                                        <div className={`absolute right-6 w-4 h-4 bg-[#0f172a] border-slate-700 rotate-45 ${tooltipPosition === 'top' ? '-bottom-2 border-b border-r' : '-top-2 border-t border-l'}`}></div>
+                                        
+                                        <div className="flex justify-between items-start mb-5 border-b border-slate-800 pb-4">
+                                            <div>
+                                                <h4 className="text-lg font-black text-white leading-tight mb-1">{post.indicatorName || post.chartConfig.title}</h4>
+                                                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{post.recorrencia} • {post.responsavel}</span>
+                                            </div>
+                                            <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${post.semaforoGeral === 'red' ? 'bg-red-500/10 border-red-500/30 text-red-400' : post.semaforoGeral === 'yellow' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'}`}>
+                                                {post.semaforoGeral === 'red' ? 'Crítico' : post.semaforoGeral === 'yellow' ? 'Atenção' : 'Normal'}
+                                            </div>
                                         </div>
-                                        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase border ${post.semaforoGeral === 'red' ? 'bg-red-500/10 border-red-500/30 text-red-400' : post.semaforoGeral === 'yellow' ? 'bg-amber-500/10 border-amber-500/30 text-amber-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'}`}>
-                                            {post.semaforoGeral === 'red' ? 'Crítico' : post.semaforoGeral === 'yellow' ? 'Atenção' : 'Normal'}
-                                        </div>
-                                    </div>
 
-                                    <div className="grid grid-cols-2 gap-6 mb-6">
-                                        <div className="space-y-1">
-                                            <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1"><Target size={12}/> Objetivo</span>
-                                            <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">{post.report.objetivo || 'Não definido.'}</p>
+                                        <div className="grid grid-cols-2 gap-6 mb-5">
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1"><Target size={12}/> Objetivo</span>
+                                                <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">{post.report.objetivo || 'Não definido.'}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1"><Activity size={12}/> Status Atual</span>
+                                                <p className="text-xs text-slate-300 leading-relaxed">{getStatusText(post.semaforoGeral || 'green', post.semaforoRules)}</p>
+                                            </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1"><Activity size={12}/> Status Atual</span>
-                                            <p className="text-xs text-slate-300 leading-relaxed">{getStatusText(post.semaforoGeral || 'green', post.semaforoRules)}</p>
-                                        </div>
-                                    </div>
 
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
-                                            <span>Progresso da Meta</span>
-                                            <span>{post.progress}%</span>
+                                        {/* NOVO: Resumo Executivo */}
+                                        <div className="mb-5 p-4 bg-slate-900/50 rounded-xl border border-slate-800 space-y-3">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2 border-b border-slate-800 pb-2 mb-2">
+                                                <FileText size={12} className="text-blue-400"/> Resumo Executivo do Período
+                                            </span>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <span className="text-[9px] font-bold text-emerald-500 uppercase flex items-center gap-1 mb-1"><CheckCircle2 size={10}/> Avanços</span>
+                                                    <p className="text-[10px] text-slate-300 leading-snug line-clamp-3 italic">{post.report.resumoAvanços || 'Não informado.'}</p>
+                                                </div>
+                                                <div>
+                                                    <span className="text-[9px] font-bold text-amber-500 uppercase flex items-center gap-1 mb-1"><Clock size={10}/> Atrasos</span>
+                                                    <p className="text-[10px] text-slate-300 leading-snug line-clamp-3 italic">{post.report.resumoAtrasos || 'Não informado.'}</p>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
-                                            <div 
-                                                className={`h-full ${post.progress >= 100 ? 'bg-emerald-500' : post.progress > 50 ? 'bg-blue-500' : 'bg-amber-500'}`} 
-                                                style={{ width: `${post.progress}%` }}
-                                            ></div>
-                                        </div>
-                                    </div>
 
-                                    <div className="mt-6 pt-4 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase">
-                                        <span className="flex items-center gap-1"><Calendar size={12}/> Atualizado em: {new Date(post.dataAtualizacao).toLocaleDateString()}</span>
-                                        <span className="text-emerald-500">Ver Detalhes &rarr;</span>
+                                        {/* NOVO: Problemas Críticos (Se houver) */}
+                                        {post.report.problemasCriticos && post.report.problemasCriticos.length > 0 && (
+                                            <div className="mb-5 p-4 bg-red-950/20 rounded-xl border border-red-900/30">
+                                                <span className="text-[10px] font-black text-red-400 uppercase flex items-center gap-2 mb-2">
+                                                    <AlertTriangle size={12}/> Problema Crítico Principal
+                                                </span>
+                                                <div className="flex justify-between items-start gap-4">
+                                                    <div>
+                                                        <p className="text-[11px] font-bold text-white mb-1">{post.report.problemasCriticos[0].problema}</p>
+                                                        <p className="text-[10px] text-slate-400">Ação: {post.report.problemasCriticos[0].acao}</p>
+                                                    </div>
+                                                    <span className="text-[9px] font-black bg-red-500/20 text-red-300 px-2 py-0.5 rounded border border-red-500/20 uppercase whitespace-nowrap">
+                                                        {post.report.problemasCriticos[0].impacto} Impacto
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="space-y-2">
+                                            <div className="flex justify-between text-[10px] font-black text-slate-400 uppercase">
+                                                <span>Progresso da Meta</span>
+                                                <span>{post.progress}%</span>
+                                            </div>
+                                            <div className="h-2 bg-slate-900 rounded-full overflow-hidden border border-slate-800">
+                                                <div 
+                                                    className={`h-full ${post.progress >= 100 ? 'bg-emerald-500' : post.progress > 50 ? 'bg-blue-500' : 'bg-amber-500'}`} 
+                                                    style={{ width: `${post.progress}%` }}
+                                                ></div>
+                                            </div>
+                                        </div>
+
+                                        <div className="mt-5 pt-3 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-500 font-bold uppercase">
+                                            <span className="flex items-center gap-1"><Calendar size={12}/> Atualizado em: {new Date(post.dataAtualizacao).toLocaleDateString()}</span>
+                                            <span className="text-emerald-500 flex items-center gap-1">Clique para Detalhes &rarr;</span>
+                                        </div>
+                                        
+                                        <Link to={`/topic/${post.topicId}`} className="absolute inset-0 z-10" />
                                     </div>
-                                    
-                                    {/* Link invisível para clicar no card inteiro e ir para o detalhe, se desejar */}
-                                    <Link to={`/topic/${post.topicId}`} className="absolute inset-0 z-10" />
                                 </div>
-                            </div>
+                            )}
                         </div>
                     ))}
                 </div>

@@ -55,6 +55,12 @@ const USERS_MAP: Record<string, string> = {
   'rosa': 'Maiara dos Santos Maia'
 };
 
+const CHART_TYPES: { id: 'bar' | 'line' | 'pie'; label: string; icon: any }[] = [
+  { id: 'bar', label: 'Barras', icon: BarChart },
+  { id: 'line', label: 'Linha', icon: LineChart },
+  { id: 'pie', label: 'Pizza', icon: PieChart },
+];
+
 // --- Helpers de Formatação ---
 const formatCurrency = (value: number) => {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -74,6 +80,13 @@ interface LineSeriesState {
   label: string;
   color: string;
   data: Array<{ x: string; y: number }>;
+}
+
+interface BuilderRow {
+  label: string;
+  barValue: number;
+  lineValue: number;
+  color: string;
 }
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ 
@@ -128,7 +141,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   const [progressHistory, setProgressHistory] = useState<ProgressUpdate[]>([]);
   
   // Builder rows (BARRAS): Agora suporta barValue e lineValue
-  const [builderRows, setBuilderRows] = useState<any[]>([{ label: 'Mês 1', barValue: 0, lineValue: 0, color: '#10b981' }]);
+  const [builderRows, setBuilderRows] = useState<BuilderRow[]>([{ label: 'Mês 1', barValue: 0, lineValue: 0, color: '#10b981' }]);
 
   // Builder Series (LINHAS): State para múltiplas séries
   const [lineSeries, setLineSeries] = useState<LineSeriesState[]>([
@@ -724,14 +737,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4">
                                     <label className="text-[10px] font-black text-slate-500 uppercase block mb-3">Tipo de Visualização</label>
                                     <div className="flex gap-3">
-                                        {[
-                                            {id: 'bar', label: 'Barras', icon: BarChart},
-                                            {id: 'line', label: 'Linha', icon: LineChart},
-                                            {id: 'pie', label: 'Pizza', icon: PieChart},
-                                        ].map(t => (
+                                        {CHART_TYPES.map(t => (
                                             <button 
                                                 key={t.id} 
-                                                onClick={() => setChartType(t.id as any)}
+                                                onClick={() => setChartType(t.id)}
                                                 className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-xl border text-xs font-bold uppercase transition-all ${chartType === t.id ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-white'}`}
                                             >
                                                 <t.icon size={16}/> {t.label}
@@ -1036,7 +1045,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     <td className="p-2 bg-slate-900/30"><input value={ind.extra || ''} onChange={e => { const n = [...report.indicadoresChave]; n[i].extra = e.target.value; setReport({...report, indicadoresChave: n}); }} className="w-full bg-transparent p-2 text-amber-200 outline-none font-medium" placeholder="-" /></td>
                                 )}
                                 <td className="p-2">
-                                    <select value={ind.status} onChange={e => { const n = [...report.indicadoresChave]; n[i].status = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
+                                    <select value={ind.status} onChange={e => { const n = [...report.indicadoresChave]; n[i].status = e.target.value as 'green' | 'yellow' | 'red'; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
                                     <option value="green">🟢</option>
                                     <option value="yellow">🟡</option>
                                     <option value="red">🔴</option>
@@ -1044,7 +1053,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 </td>
                                 <td className="p-2">
                                     <div className="relative">
-                                        <select value={ind.tendencia} onChange={e => { const n = [...report.indicadoresChave]; n[i].tendencia = e.target.value as any; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px] appearance-none pl-6 pr-2">
+                                        <select value={ind.tendencia} onChange={e => { const n = [...report.indicadoresChave]; n[i].tendencia = e.target.value as 'up' | 'stable' | 'down'; setReport({...report, indicadoresChave: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px] appearance-none pl-6 pr-2">
                                         <option value="up">Crescimento</option>
                                         <option value="stable">Estável</option>
                                         <option value="down">Queda</option>
@@ -1088,7 +1097,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                <td className="p-2"><input value={m.meta} onChange={e => { const n = [...report.metasPrioritarias]; n[i].meta = e.target.value; setReport({...report, metasPrioritarias: n}); }} className="w-full bg-transparent p-2 text-white outline-none" placeholder="Meta" /></td>
                                <td className="p-2"><input value={m.prazo} onChange={e => { const n = [...report.metasPrioritarias]; n[i].prazo = e.target.value; setReport({...report, metasPrioritarias: n}); }} className="w-full bg-transparent p-2 text-slate-400 outline-none" placeholder="Prazo" /></td>
                                <td className="p-2">
-                                 <select value={m.status} onChange={e => { const n = [...report.metasPrioritarias]; n[i].status = e.target.value as any; setReport({...report, metasPrioritarias: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
+                                 <select value={m.status} onChange={e => { const n = [...report.metasPrioritarias]; n[i].status = e.target.value as 'green' | 'yellow' | 'red'; setReport({...report, metasPrioritarias: n}); }} className="bg-slate-950 text-white rounded p-1 outline-none text-[10px]">
                                    <option value="green">🟢</option>
                                    <option value="yellow">🟡</option>
                                    <option value="red">🔴</option>
@@ -1128,7 +1137,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                 <td className="p-2"><input value={p.problema} onChange={e => { const n = [...report.problemasCriticos]; n[i].problema = e.target.value; setReport({...report, problemasCriticos: n}); }} className="w-full bg-transparent p-2 text-white outline-none" placeholder="Problema" /></td>
                                 
                                 <td className="p-2">
-                                    <select value={p.impacto} onChange={e => { const n = [...report.problemasCriticos]; n[i].impacto = e.target.value as any; setReport({...report, problemasCriticos: n}); }} className="w-full bg-slate-950 text-white rounded p-2 outline-none">
+                                    <select value={p.impacto} onChange={e => { const n = [...report.problemasCriticos]; n[i].impacto = e.target.value as 'Alto' | 'Médio' | 'Baixo'; setReport({...report, problemasCriticos: n}); }} className="w-full bg-slate-950 text-white rounded p-2 outline-none">
                                         <option value="Alto">Alto</option>
                                         <option value="Médio">Médio</option>
                                         <option value="Baixo">Baixo</option>
