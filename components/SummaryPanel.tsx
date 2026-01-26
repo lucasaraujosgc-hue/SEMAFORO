@@ -1,9 +1,10 @@
 
 import React, { useState } from 'react';
-import { Filter, Search, User, Calendar, Target, Activity, LayoutDashboard, ArrowLeft, FileText, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
+import { Filter, Search, User, Calendar, Target, Activity, LayoutDashboard, ArrowLeft, FileText, AlertTriangle, CheckCircle2, Clock, ListChecks } from 'lucide-react';
 import { Post, TopicId } from '../types';
 import { TOPICS } from '../constants';
 import { Link } from 'react-router-dom';
+import { ReportModal } from './ReportModal';
 
 interface SummaryPanelProps {
   posts: Post[];
@@ -17,6 +18,9 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
   // States para controle do Tooltip Inteligente
   const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<'top' | 'bottom'>('bottom');
+  
+  // State para o Modal Completo
+  const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
   const filteredPosts = posts.filter(post => {
     const matchesTopic = filterTopic === 'all' || post.topicId === filterTopic;
@@ -55,13 +59,17 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
 
   const handleMouseEnter = (e: React.MouseEvent<HTMLDivElement>, postId: string) => {
       const rect = e.currentTarget.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const estimatedCardHeight = 550; // Altura estimada do card expandido
+      const viewportHeight = window.innerHeight;
+      const estimatedCardHeight = 600; // Aumentado um pouco para segurança
 
-      // Se o espaço abaixo for menor que a altura do card, exibe para cima
-      if (spaceBelow < estimatedCardHeight) {
+      const spaceBelow = viewportHeight - rect.bottom;
+      const spaceAbove = rect.top;
+
+      // Lógica aprimorada: Só joga para CIMA se não tiver espaço embaixo E tiver espaço em cima.
+      if (spaceBelow < estimatedCardHeight && spaceAbove > estimatedCardHeight) {
           setTooltipPosition('top');
       } else {
+          // Se tiver espaço embaixo, ou se não tiver espaço em lugar nenhum (default), mantem embaixo
           setTooltipPosition('bottom');
       }
       setHoveredPostId(postId);
@@ -156,8 +164,11 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                             onMouseEnter={(e) => handleMouseEnter(e, post.id)}
                             onMouseLeave={handleMouseLeave}
                         >
-                            {/* Linha do Indicador */}
-                            <div className="bg-slate-900/40 hover:bg-slate-800 border border-slate-800/50 hover:border-slate-700 p-4 rounded-xl flex items-center justify-between transition-all cursor-default duration-300">
+                            {/* Linha do Indicador (Botão clicável) */}
+                            <div 
+                                onClick={() => setSelectedPost(post)}
+                                className="bg-slate-900/40 hover:bg-slate-800 border border-slate-800/50 hover:border-slate-700 p-4 rounded-xl flex items-center justify-between transition-all cursor-pointer duration-300 hover:translate-x-1"
+                            >
                                 <div className="flex items-center gap-4">
                                     <span className="text-[10px] font-black text-slate-600 w-8">{post.progress}%</span>
                                     <span className="text-sm font-medium text-slate-200">{post.indicatorName || post.chartConfig.title}</span>
@@ -167,10 +178,13 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
 
                             {/* GRID DETALHADO (TOOLTIP INTELIGENTE) */}
                             {hoveredPostId === post.id && (
-                                <div className={`absolute z-50 right-0 w-full md:w-[500px] lg:w-[650px] animate-in fade-in duration-200 ${tooltipPosition === 'top' ? 'bottom-full mb-3 slide-in-from-bottom-2' : 'top-full mt-3 slide-in-from-top-2'}`}>
-                                    <div className="bg-[#0f172a] border border-slate-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden p-6 relative">
+                                <div 
+                                    className={`absolute z-50 right-0 w-full md:w-[500px] lg:w-[650px] animate-in fade-in duration-200 ${tooltipPosition === 'top' ? 'bottom-full mb-3 slide-in-from-bottom-2' : 'top-full mt-3 slide-in-from-top-2'}`}
+                                    onClick={() => setSelectedPost(post)} // Clique no tooltip também abre o modal
+                                >
+                                    <div className="bg-[#0f172a] border border-slate-700 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.7)] overflow-hidden p-6 relative cursor-pointer">
                                         
-                                        {/* Seta decorativa (Posicionada dinamicamente) */}
+                                        {/* Seta decorativa */}
                                         <div className={`absolute right-6 w-4 h-4 bg-[#0f172a] border-slate-700 rotate-45 ${tooltipPosition === 'top' ? '-bottom-2 border-b border-r' : '-top-2 border-t border-l'}`}></div>
                                         
                                         <div className="flex justify-between items-start mb-5 border-b border-slate-800 pb-4">
@@ -190,16 +204,22 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                                             </div>
                                             <div className="space-y-1">
                                                 <span className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1"><Activity size={12}/> Status Atual</span>
-                                                <p className="text-xs text-slate-300 leading-relaxed">{getStatusText(post.semaforoGeral || 'green', post.semaforoRules)}</p>
+                                                <p className={`text-xs font-bold leading-relaxed ${
+                                                    post.semaforoGeral === 'red' ? 'text-red-400' : 
+                                                    post.semaforoGeral === 'yellow' ? 'text-amber-400' : 
+                                                    'text-emerald-400'
+                                                }`}>
+                                                    {getStatusText(post.semaforoGeral || 'green', post.semaforoRules)}
+                                                </p>
                                             </div>
                                         </div>
 
-                                        {/* NOVO: Resumo Executivo */}
+                                        {/* Resumo Executivo (Com Decisões) */}
                                         <div className="mb-5 p-4 bg-slate-900/50 rounded-xl border border-slate-800 space-y-3">
                                             <span className="text-[10px] font-black text-slate-400 uppercase flex items-center gap-2 border-b border-slate-800 pb-2 mb-2">
                                                 <FileText size={12} className="text-blue-400"/> Resumo Executivo do Período
                                             </span>
-                                            <div className="grid grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-3 gap-4">
                                                 <div>
                                                     <span className="text-[9px] font-bold text-emerald-500 uppercase flex items-center gap-1 mb-1"><CheckCircle2 size={10}/> Avanços</span>
                                                     <p className="text-[10px] text-slate-300 leading-snug line-clamp-3 italic">{post.report.resumoAvanços || 'Não informado.'}</p>
@@ -208,10 +228,14 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                                                     <span className="text-[9px] font-bold text-amber-500 uppercase flex items-center gap-1 mb-1"><Clock size={10}/> Atrasos</span>
                                                     <p className="text-[10px] text-slate-300 leading-snug line-clamp-3 italic">{post.report.resumoAtrasos || 'Não informado.'}</p>
                                                 </div>
+                                                <div>
+                                                    <span className="text-[9px] font-bold text-blue-500 uppercase flex items-center gap-1 mb-1"><ListChecks size={10}/> Decisões</span>
+                                                    <p className="text-[10px] text-slate-300 leading-snug line-clamp-3 italic">{post.report.resumoDecisoes || 'Nenhuma.'}</p>
+                                                </div>
                                             </div>
                                         </div>
 
-                                        {/* NOVO: Problemas Críticos (Se houver) */}
+                                        {/* Problemas Críticos (Se houver) */}
                                         {post.report.problemasCriticos && post.report.problemasCriticos.length > 0 && (
                                             <div className="mb-5 p-4 bg-red-950/20 rounded-xl border border-red-900/30">
                                                 <span className="text-[10px] font-black text-red-400 uppercase flex items-center gap-2 mb-2">
@@ -246,8 +270,6 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                                             <span className="flex items-center gap-1"><Calendar size={12}/> Atualizado em: {new Date(post.dataAtualizacao).toLocaleDateString()}</span>
                                             <span className="text-emerald-500 flex items-center gap-1">Clique para Detalhes &rarr;</span>
                                         </div>
-                                        
-                                        <Link to={`/topic/${post.topicId}`} className="absolute inset-0 z-10" />
                                     </div>
                                 </div>
                             )}
@@ -263,6 +285,11 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
             </div>
         )}
       </div>
+
+      {/* Modal Completo */}
+      {selectedPost && (
+        <ReportModal post={selectedPost} onClose={() => setSelectedPost(null)} />
+      )}
     </div>
   );
 };

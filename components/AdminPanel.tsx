@@ -460,7 +460,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const updateSeriesPoint = (seriesIndex: number, pointIndex: number, field: 'x' | 'y', value: any) => {
       const newSeries = [...lineSeries];
-      newSeries[seriesIndex].data[pointIndex][field] = value;
+      (newSeries[seriesIndex].data[pointIndex] as any)[field] = value;
       setLineSeries(newSeries);
   };
 
