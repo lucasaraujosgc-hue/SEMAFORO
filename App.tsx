@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert, ExternalLink, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert, ExternalLink, ArrowRight, LayoutDashboard } from 'lucide-react';
 import { TOPICS } from './constants';
 import { Post, TopicId, ChartConfig, ProgressUpdate } from './types';
 import { TopicCard } from './components/TopicCard';
 import { ChartRenderer } from './components/ChartRenderer';
 import { AdminPanel } from './components/AdminPanel';
+import { SummaryPanel } from './components/SummaryPanel';
 
 function App() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -140,9 +141,14 @@ function App() {
                 <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">Sala de Situação Executiva</span>
               </div>
             </Link>
-            <button onClick={() => setIsAdminOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 hover:text-emerald-400 border border-slate-700 rounded-lg transition-all active:scale-95">
-              <Lock size={14} /> Gestão
-            </button>
+            <div className="flex items-center gap-3">
+                <Link to="/painel" className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 hover:text-emerald-400 border border-slate-700 rounded-lg transition-all active:scale-95 hover:bg-slate-800">
+                    <LayoutDashboard size={14} /> Painel
+                </Link>
+                <button onClick={() => setIsAdminOpen(true)} className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-400 hover:text-emerald-400 border border-slate-700 rounded-lg transition-all active:scale-95 hover:bg-slate-800">
+                    <Lock size={14} /> Gestão
+                </button>
+            </div>
           </div>
         </header>
 
@@ -150,6 +156,7 @@ function App() {
           <Routes>
             <Route path="/" element={<DashboardView isLoading={isLoading} />} />
             <Route path="/topic/:topicId" element={<TopicDetailView posts={posts} isLoading={isLoading} />} />
+            <Route path="/painel" element={<SummaryPanel posts={posts} />} />
           </Routes>
         </main>
 
