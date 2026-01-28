@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { HashRouter as Router, Routes, Route, useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert, ExternalLink, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert, ExternalLink, ArrowRight, LayoutDashboard, Search, Filter, ArrowUpDown } from 'lucide-react';
 import { TOPICS } from './constants';
 import { Post, TopicId, ChartConfig, ProgressUpdate } from './types';
 import { TopicCard } from './components/TopicCard';
@@ -197,24 +197,119 @@ const DashboardView = ({ isLoading }: { isLoading: boolean }) => {
 const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boolean }) => {
   const { topicId } = useParams();
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  
+  // Estados para filtros e busca
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterRecorrencia, setFilterRecorrencia] = useState('all');
+  const [sortBy, setSortBy] = useState<'default' | 'alpha' | 'status'>('default');
+
   const topic = TOPICS.find(t => t.id === topicId);
-  // Posts já estão ordenados pelo fetchPosts
   const topicPosts = posts.filter(p => p.topicId === topicId);
+
+  // Extrair periodicidades únicas para este tópico
+  const uniqueRecorrencias = useMemo(() => {
+      const recs = new Set(topicPosts.map(p => p.recorrencia).filter(Boolean));
+      return Array.from(recs).sort();
+  }, [topicPosts]);
+
+  // Lógica de Filtragem e Ordenação
+  const processedPosts = useMemo(() => {
+      let result = topicPosts.filter(post => {
+          const matchesSearch = (post.indicatorName || post.chartConfig.title).toLowerCase().includes(searchTerm.toLowerCase());
+          const matchesStatus = filterStatus === 'all' || (post.semaforoGeral || 'green') === filterStatus;
+          const matchesRecorrencia = filterRecorrencia === 'all' || post.recorrencia === filterRecorrencia;
+          return matchesSearch && matchesStatus && matchesRecorrencia;
+      });
+
+      if (sortBy === 'alpha') {
+          result.sort((a, b) => (a.indicatorName || a.chartConfig.title).localeCompare(b.indicatorName || b.chartConfig.title));
+      } else if (sortBy === 'status') {
+          const weight = { red: 3, yellow: 2, green: 1 };
+          result.sort((a, b) => {
+              const wa = weight[a.semaforoGeral || 'green'] || 0;
+              const wb = weight[b.semaforoGeral || 'green'] || 0;
+              return wb - wa; // Críticos primeiro
+          });
+      }
+      // 'default' mantém a ordem original (que já é baseada no campo 'order' do banco)
+
+      return result;
+  }, [topicPosts, searchTerm, filterStatus, filterRecorrencia, sortBy]);
 
   if (!topic) return <div className="text-center py-20">Não encontrado</div>;
 
   return (
     <div>
-      <div className="mb-10 flex items-end justify-between border-b border-slate-800 pb-6">
+      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between border-b border-slate-800 pb-6 gap-6">
         <div>
           <Link to="/" className="text-xs text-slate-500 hover:text-white flex items-center gap-1 mb-2"><ArrowLeft size={12}/> Voltar ao Início</Link>
           <h2 className="text-3xl font-bold">{topic.label}</h2>
           <p className="text-slate-400 mt-1">{topic.description}</p>
         </div>
+
+        {/* Barra de Ferramentas (Filtros e Busca) */}
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            
+            {/* Busca */}
+            <div className="relative group">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={14} />
+                <input 
+                    type="text" 
+                    placeholder="Buscar..." 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    className="w-full sm:w-40 bg-slate-900 text-white text-xs py-2.5 pl-9 pr-4 rounded-xl border border-slate-800 outline-none focus:border-emerald-500 transition-all"
+                />
+            </div>
+
+            {/* Filtro Status */}
+            <div className="relative">
+                <select 
+                    value={filterStatus} 
+                    onChange={e => setFilterStatus(e.target.value)}
+                    className="w-full sm:w-32 appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-3 pr-8 py-2.5 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-all"
+                >
+                    <option value="all">Todos Status</option>
+                    <option value="green">Normal</option>
+                    <option value="yellow">Atenção</option>
+                    <option value="red">Crítico</option>
+                </select>
+                <div className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-2 h-2 rounded-full ${filterStatus === 'green' ? 'bg-emerald-500' : filterStatus === 'yellow' ? 'bg-amber-500' : filterStatus === 'red' ? 'bg-red-500' : 'bg-slate-600'}`}></div>
+            </div>
+
+            {/* Filtro Periodicidade */}
+            <div className="relative">
+                <select 
+                    value={filterRecorrencia} 
+                    onChange={e => setFilterRecorrencia(e.target.value)}
+                    className="w-full sm:w-32 appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-3 pr-8 py-2.5 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-all"
+                >
+                    <option value="all">Período</option>
+                    {uniqueRecorrencias.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+                <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={12}/>
+            </div>
+
+            {/* Ordenação */}
+            <div className="relative">
+                <select 
+                    value={sortBy} 
+                    onChange={e => setSortBy(e.target.value as any)}
+                    className="w-full sm:w-32 appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-3 pr-8 py-2.5 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-all"
+                >
+                    <option value="default">Padrão</option>
+                    <option value="alpha">A-Z</option>
+                    <option value="status">Prioridade</option>
+                </select>
+                <ArrowUpDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={12}/>
+            </div>
+
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {topicPosts.map(post => {
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {processedPosts.length > 0 ? processedPosts.map(post => {
             const status = post.semaforoGeral || 'green';
             const rules = post.semaforoRules || { green: 'Normal', yellow: 'Atenção', red: 'Crítico' };
             const progressColor = post.progress >= 100 ? 'bg-emerald-500' : post.progress > 50 ? 'bg-blue-500' : 'bg-amber-500';
@@ -263,7 +358,12 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
               </div>
             </div>
           </div>
-        )})}
+        )}) : (
+            <div className="col-span-1 md:col-span-2 text-center py-20 text-slate-500 bg-slate-900/20 rounded-3xl border border-slate-800 border-dashed">
+                <Search className="mx-auto mb-4 opacity-20" size={48} />
+                <p className="text-sm font-bold uppercase">Nenhum indicador encontrado com os filtros atuais.</p>
+            </div>
+        )}
       </div>
 
       {selectedPost && (

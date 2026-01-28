@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Filter, Search, User, Calendar, Target, Activity, LayoutDashboard, ArrowLeft, FileText, AlertTriangle, CheckCircle2, Clock, ListChecks } from 'lucide-react';
 import { Post, TopicId } from '../types';
 import { TOPICS } from '../constants';
@@ -13,6 +13,7 @@ interface SummaryPanelProps {
 export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
   const [filterTopic, setFilterTopic] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterRecorrencia, setFilterRecorrencia] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   
   // States para controle do Tooltip Inteligente
@@ -22,13 +23,20 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
   // State para o Modal Completo
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
 
+  // Extrair periodicidades únicas para o filtro
+  const uniqueRecorrencias = useMemo(() => {
+      const recs = new Set(posts.map(p => p.recorrencia).filter(Boolean));
+      return Array.from(recs).sort();
+  }, [posts]);
+
   const filteredPosts = posts.filter(post => {
     const matchesTopic = filterTopic === 'all' || post.topicId === filterTopic;
     const postStatus = post.semaforoGeral || 'green';
     const matchesStatus = filterStatus === 'all' || postStatus === filterStatus;
+    const matchesRecorrencia = filterRecorrencia === 'all' || post.recorrencia === filterRecorrencia;
     const matchesSearch = (post.indicatorName || post.chartConfig.title).toLowerCase().includes(searchTerm.toLowerCase());
     
-    return matchesTopic && matchesStatus && matchesSearch;
+    return matchesTopic && matchesStatus && matchesSearch && matchesRecorrencia;
   });
 
   // Agrupar por Secretaria se o filtro for 'all', senão mostra lista direta
@@ -122,6 +130,21 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                 </div>
             </div>
 
+            <div className="flex-1 min-w-[150px]">
+                <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Periodicidade</label>
+                <div className="relative">
+                    <select 
+                        value={filterRecorrencia} 
+                        onChange={e => setFilterRecorrencia(e.target.value)}
+                        className="w-full appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-4 pr-10 py-3 rounded-xl border border-slate-700 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-colors"
+                    >
+                        <option value="all">Todas</option>
+                        {uniqueRecorrencias.map(r => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                    <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14}/>
+                </div>
+            </div>
+
             <div className="flex-1 min-w-[200px]">
                 <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Filtrar por Status</label>
                 <div className="flex bg-slate-900 rounded-xl p-1 border border-slate-700">
@@ -169,11 +192,21 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                                 onClick={() => setSelectedPost(post)}
                                 className="bg-slate-900/40 hover:bg-slate-800 border border-slate-800/50 hover:border-slate-700 p-4 rounded-xl flex items-center justify-between transition-all cursor-pointer duration-300 hover:translate-x-1"
                             >
-                                <div className="flex items-center gap-4">
-                                    <span className="text-[10px] font-black text-slate-600 w-8">{post.progress}%</span>
-                                    <span className="text-sm font-medium text-slate-200">{post.indicatorName || post.chartConfig.title}</span>
+                                <div className="flex items-center gap-4 flex-1">
+                                    <span className="text-[10px] font-black text-slate-600 w-8 shrink-0">{post.progress}%</span>
+                                    <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-3">
+                                        <span className="text-sm font-medium text-slate-200">{post.indicatorName || post.chartConfig.title}</span>
+                                        {/* Status Textual ao lado do nome */}
+                                        <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
+                                            post.semaforoGeral === 'red' ? 'bg-red-500/10 border-red-500/20 text-red-400' : 
+                                            post.semaforoGeral === 'yellow' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 
+                                            'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                        }`}>
+                                            {getStatusText(post.semaforoGeral || 'green', post.semaforoRules)}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className={`w-3 h-3 rounded-full ${getStatusColor(post.semaforoGeral || 'green')}`}></div>
+                                <div className={`w-3 h-3 rounded-full shrink-0 ml-4 ${getStatusColor(post.semaforoGeral || 'green')}`}></div>
                             </div>
 
                             {/* GRID DETALHADO (TOOLTIP INTELIGENTE) */}
