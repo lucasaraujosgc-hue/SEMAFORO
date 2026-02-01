@@ -102,6 +102,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Filter State
   const [filterTopic, setFilterTopic] = useState<string>('all');
+  // Sort State
+  const [sortOrder, setSortOrder] = useState<'default' | 'alpha'>('default');
 
   // Drag and Drop State
   const dragItem = useRef<number | null>(null);
@@ -420,7 +422,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  const filteredPosts = posts.filter(p => filterTopic === 'all' || p.topicId === filterTopic);
+  // Filtragem e Ordenação
+  const filteredPosts = posts
+    .filter(p => filterTopic === 'all' || p.topicId === filterTopic)
+    .sort((a, b) => {
+        if (sortOrder === 'alpha') {
+            const nameA = a.indicatorName || a.chartConfig.title || '';
+            const nameB = b.indicatorName || b.chartConfig.title || '';
+            return nameA.localeCompare(nameB);
+        }
+        // Default: A lista já vem ordenada pelo App.tsx baseado no campo 'order' ou data
+        return 0; 
+    });
   
   // Helpers para Múltiplas Linhas
   const addLineSeries = () => {
@@ -466,6 +479,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Drag and Drop Logic
   const handleSort = async () => {
+    // Bloqueia ordenação se estiver em modo alfabético
+    if (sortOrder === 'alpha') return;
+
     if (dragItem.current === null || dragOverItem.current === null) return;
     const draggedIdx = dragItem.current;
     const overIdx = dragOverItem.current;
@@ -1338,6 +1354,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="flex items-center gap-3">
                         <div className="relative">
                             <select 
+                                value={sortOrder} 
+                                onChange={e => setSortOrder(e.target.value as any)}
+                                className="appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-10 pr-8 py-2.5 rounded-xl border border-slate-700 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-colors"
+                            >
+                                <option value="default">Personalizado</option>
+                                <option value="alpha">A - Z</option>
+                            </select>
+                            <ArrowUpDown className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14}/>
+                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none border-t-4 border-l-4 border-r-4 border-transparent border-t-slate-500"></div>
+                        </div>
+
+                        <div className="relative">
+                            <select 
                                 value={filterTopic} 
                                 onChange={e => setFilterTopic(e.target.value)}
                                 className="appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-10 pr-8 py-2.5 rounded-xl border border-slate-700 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-colors"
@@ -1356,7 +1385,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div 
                         key={post.id} 
                         className={`bg-slate-900/40 p-6 rounded-3xl border flex items-center justify-between group transition-all ${isDragging ? 'opacity-50 border-dashed border-slate-700' : 'border-slate-800 hover:border-emerald-500/30'}`}
-                        draggable
+                        draggable={sortOrder === 'default'}
                         onDragStart={() => { dragItem.current = index; setIsDragging(true); }}
                         onDragEnter={() => { dragOverItem.current = index; }}
                         onDragEnd={handleSort}
@@ -1364,9 +1393,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     >
                       <div className="flex items-center gap-6">
                          {/* Grip Handle for Dragging */}
-                         <div className="p-2 rounded cursor-grab active:cursor-grabbing text-slate-600 hover:text-white">
-                             <GripVertical size={20} />
-                         </div>
+                         {sortOrder === 'default' && (
+                             <div className="p-2 rounded cursor-grab active:cursor-grabbing text-slate-600 hover:text-white">
+                                 <GripVertical size={20} />
+                             </div>
+                         )}
 
                         <div className="w-14 h-14 bg-slate-950 rounded-2xl flex items-center justify-center border border-slate-800 group-hover:scale-105 transition-all relative">
                           <span className="text-[10px] font-black text-slate-600">{post.topicId.substring(0,3).toUpperCase()}</span>
