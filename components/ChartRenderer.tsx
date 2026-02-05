@@ -28,6 +28,10 @@ const formatValue = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value);
 };
 
+// Estilos padronizados do Tooltip
+const tooltipContentStyle = { backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' };
+const tooltipItemStyle = { color: '#fbbf24', fontWeight: 'bold', fontSize: '13px' }; // Amber-400
+
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
   const { type, color: mainColor, barLabel, lineLabel, title, multiLineSeries } = config;
 
@@ -197,7 +201,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} padding={{ left: 20, right: 20 }} />
                 <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
-                <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
+                <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
                 <Legend wrapperStyle={{ paddingTop: '10px' }} />
                 {multiLineSeriesConfig.map((series, index) => (
                     <Line 
@@ -249,7 +253,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                     <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.2)" />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+                <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
                 <Legend />
               </PieChart>
             );
@@ -265,7 +269,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                   <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="label" scale="point" padding={{ left: 60, right: 60 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
                   <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} tickCount={5} interval={0} />
-                  <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+                  <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
                   <Legend wrapperStyle={{ paddingTop: '10px' }} />
                   
                   <Line 
@@ -311,7 +315,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                 tickCount={5}
                 interval={0}
               />
-              <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+              <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
               
               <Bar 
@@ -343,7 +347,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
           <XAxis dataKey="label" scale="point" padding={{ left: 10, right: 10 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
           <YAxis yAxisId="left" orientation="left" stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} label={complexConfig.yAxes?.left?.title ? { value: complexConfig.yAxes.left.title, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 } : undefined} />
           <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} tickLine={false} hide={!complexConfig.yAxes?.right} domain={domainWithPadding} label={complexConfig.yAxes?.right?.title ? { value: complexConfig.yAxes.right.title, angle: 90, position: 'insideRight', fill: '#94a3b8', fontSize: 10 } : undefined} />
-          <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+          <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
           <Legend wrapperStyle={{ paddingTop: '10px' }} />
           {complexConfig.series.map((serie, index) => {
             if (!serie) return null; 
@@ -367,7 +371,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
             <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
             <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
-            <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
+            <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
               <Line key={key} type="monotone" dataKey={key} name={key === 'value' ? 'Valor' : key} stroke={COLORS[index % COLORS.length]} strokeWidth={3} activeDot={{ r: 6 }} />
@@ -401,7 +405,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                 <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.2)" />
               ))}
             </Pie>
-            <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} />
+            <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
             <Legend />
           </PieChart>
         );
@@ -425,7 +429,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                 tickCount={5}
                 interval={0}
             />
-            <Tooltip formatter={(value: number) => [formatValue(value), '']} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={{ backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' }} itemStyle={{ color: '#e2e8f0' }} />
+            <Tooltip formatter={(value: number) => [formatValue(value), '']} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
               <Bar 
