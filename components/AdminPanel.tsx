@@ -1,6 +1,6 @@
 
 import React, { useState, useRef } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown, Columns, Layers } from 'lucide-react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown, Columns, Layers, Check } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
 import { read, utils } from 'xlsx';
@@ -59,6 +59,11 @@ const CHART_TYPES: { id: 'bar' | 'line' | 'pie'; label: string; icon: any }[] = 
   { id: 'bar', label: 'Barras', icon: BarChart },
   { id: 'line', label: 'Linha', icon: LineChart },
   { id: 'pie', label: 'Pizza', icon: PieChart },
+];
+
+const RECURRENCE_OPTIONS = [
+    'Diário', 'Semanal', 'Quinzenal', 'Mensal', 
+    'Trimestral', 'Quadrimestral', 'Semestral', 'Anual'
 ];
 
 // --- Helpers de Formatação ---
@@ -336,6 +341,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setJsonInput('');
       setProgress(0); setProgressHistory([]);
     }
+  };
+
+  const toggleRecorrencia = (option: string) => {
+      const current = recorrencia ? recorrencia.split(', ').filter(Boolean) : [];
+      if (current.includes(option)) {
+          setRecorrencia(current.filter(i => i !== option).join(', '));
+      } else {
+          setRecorrencia([...current, option].join(', '));
+      }
   };
 
   const addProgressMove = () => {
@@ -648,8 +662,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <div className="grid md:grid-cols-3 gap-6">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Periodicidade</label>
-                            <input value={recorrencia} onChange={e => setRecorrencia(e.target.value)} className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white text-sm" />
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Periodicidade (Seleção Múltipla)</label>
+                            <div className="flex flex-wrap gap-2">
+                                {RECURRENCE_OPTIONS.map(opt => {
+                                    const isSelected = recorrencia.split(', ').includes(opt);
+                                    return (
+                                        <button
+                                            key={opt}
+                                            onClick={() => toggleRecorrencia(opt)}
+                                            className={`px-3 py-2 rounded-xl border text-[10px] font-bold uppercase transition-all flex items-center gap-2 ${
+                                                isSelected 
+                                                ? 'bg-emerald-600 border-emerald-500 text-white shadow-lg shadow-emerald-900/50' 
+                                                : 'bg-slate-950 border-slate-800 text-slate-500 hover:text-white hover:border-slate-700'
+                                            }`}
+                                        >
+                                            {isSelected && <Check size={12} />}
+                                            {opt}
+                                        </button>
+                                    );
+                                })}
+                            </div>
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase">Resp. Político</label>
