@@ -344,7 +344,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   };
 
   const toggleRecorrencia = (option: string) => {
-      const current = recorrencia ? recorrencia.split(', ').filter(Boolean) : [];
+      // Divide por vírgula para manter consistência, permitindo edição manual
+      const current = recorrencia ? recorrencia.split(',').map(s => s.trim()).filter(Boolean) : [];
       if (current.includes(option)) {
           setRecorrencia(current.filter(i => i !== option).join(', '));
       } else {
@@ -662,10 +663,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                     </div>
                     <div className="grid md:grid-cols-3 gap-6">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black text-slate-500 uppercase">Periodicidade (Seleção Múltipla)</label>
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Periodicidade</label>
+                            <input 
+                                value={recorrencia} 
+                                onChange={e => setRecorrencia(e.target.value)} 
+                                className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white text-sm mb-2" 
+                                placeholder="Ex: Mensal (Dia 5)"
+                            />
                             <div className="flex flex-wrap gap-2">
                                 {RECURRENCE_OPTIONS.map(opt => {
-                                    const isSelected = recorrencia.split(', ').includes(opt);
+                                    // Verifica se a opção está inclusa na string atual para destacar o botão
+                                    const isSelected = recorrencia ? recorrencia.split(',').map(s => s.trim()).includes(opt) : false;
                                     return (
                                         <button
                                             key={opt}
