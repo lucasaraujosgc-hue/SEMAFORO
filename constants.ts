@@ -25,7 +25,7 @@ export const TOPICS: TopicDef[] = [
   },
   {
     id: TopicId.FINANCAS,
-    label: 'Finanças',
+    label: 'Finanças e Governança',
     iconName: 'BadgeDollarSign',
     color: 'bg-emerald-600', // Verde Escuro
     description: 'Orçamento, arrecadação e despesas municipais.',

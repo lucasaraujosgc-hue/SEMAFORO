@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Filter, Search, User, Calendar, Target, Activity, LayoutDashboard, ArrowLeft, FileText, AlertTriangle, CheckCircle2, Clock, ListChecks } from 'lucide-react';
+import { Filter, Search, User, Calendar, Target, Activity, LayoutDashboard, ArrowLeft, FileText, AlertTriangle, CheckCircle2, Clock, ListChecks, ArrowUpDown } from 'lucide-react';
 import { Post, TopicId } from '../types';
 import { TOPICS } from '../constants';
 import { Link } from 'react-router-dom';
@@ -15,6 +15,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterRecorrencia, setFilterRecorrencia] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'default' | 'alpha'>('default');
   
   // States para controle do Tooltip Inteligente
   const [hoveredPostId, setHoveredPostId] = useState<string | null>(null);
@@ -39,15 +40,28 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
     return matchesTopic && matchesStatus && matchesSearch && matchesRecorrencia;
   });
 
+  // Função auxiliar de ordenação
+  const sortPosts = (postsToSort: Post[]) => {
+      if (sortBy === 'alpha') {
+          return [...postsToSort].sort((a, b) => {
+              const nameA = a.indicatorName || a.chartConfig.title || '';
+              const nameB = b.indicatorName || b.chartConfig.title || '';
+              return nameA.localeCompare(nameB);
+          });
+      }
+      return postsToSort; // Retorna na ordem original (padrão)
+  };
+
   // Agrupar por Secretaria se o filtro for 'all', senão mostra lista direta
+  // Aplica a ordenação DENTRO dos grupos
   const groupedPosts = filterTopic === 'all' 
     ? TOPICS.map(topic => ({
         topic,
-        posts: filteredPosts.filter(p => p.topicId === topic.id)
+        posts: sortPosts(filteredPosts.filter(p => p.topicId === topic.id))
       })).filter(g => g.posts.length > 0)
     : [{
         topic: TOPICS.find(t => t.id === filterTopic)!,
-        posts: filteredPosts
+        posts: sortPosts(filteredPosts)
       }];
 
   const getStatusColor = (status: string) => {
@@ -142,6 +156,21 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                         {uniqueRecorrencias.map(r => <option key={r} value={r}>{r}</option>)}
                     </select>
                     <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14}/>
+                </div>
+            </div>
+
+             <div className="flex-1 min-w-[150px]">
+                <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Ordenação</label>
+                <div className="relative">
+                    <select 
+                        value={sortBy} 
+                        onChange={e => setSortBy(e.target.value as 'default' | 'alpha')}
+                        className="w-full appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-4 pr-10 py-3 rounded-xl border border-slate-700 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-colors"
+                    >
+                        <option value="default">Padrão</option>
+                        <option value="alpha">A - Z</option>
+                    </select>
+                    <ArrowUpDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={14}/>
                 </div>
             </div>
 
