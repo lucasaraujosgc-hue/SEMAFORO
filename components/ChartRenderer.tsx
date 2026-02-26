@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import {
   BarChart,
@@ -32,19 +31,41 @@ const formatValue = (value: number) => {
 const tooltipContentStyle = { backgroundColor: '#1e293b', borderRadius: '8px', border: '1px solid #334155', color: '#f8fafc' };
 const tooltipItemStyle = { color: '#fbbf24', fontWeight: 'bold', fontSize: '13px' }; // Amber-400
 
+// --- NOVO COMPONENTE DE TOOLTIP CUSTOMIZADO ---
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div style={tooltipContentStyle} className="p-3 shadow-xl min-w-[180px]">
+        <p className="text-slate-400 text-[10px] font-black uppercase tracking-wider mb-2 border-b border-slate-700 pb-1">
+          {label}
+        </p>
+        {payload.map((entry: any, index: number) => (
+          <div key={`item-${index}`} className="flex justify-between items-center gap-4 py-1">
+            <span style={{ color: entry.color || entry.payload.fill || '#fff' }} className="text-xs font-bold">
+              {entry.name}:
+            </span>
+            <span style={tooltipItemStyle}>
+              {formatValue(entry.value)}
+            </span>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
+
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
-  const { type, color: mainColor, barLabel, lineLabel, title, multiLineSeries } = config;
+  const { type, color: mainColor, barLabel, lineLabel, title } = config;
 
   const { processedData, dataKeys, isComplex, complexConfig, isMultiLine, multiLineSeriesConfig } = useMemo(() => {
     try {
         // CASO ESPECIAL: Múltiplas Linhas (Estrutura Nova)
         if (config.multiLineSeries && Array.isArray(config.multiLineSeries) && config.multiLineSeries.length > 0) {
-            // Unifica todos os pontos X de todas as séries para garantir que o eixo X tenha todos os labels
             const allXLabels = Array.from(new Set(
                 config.multiLineSeries.flatMap(s => s.data.map(d => d.x))
             ));
             
-            // Processa os dados para o formato que o Recharts espera: [{ label: 'Jan', 'Serie1': 10, 'Serie2': 20 }]
             const mergedData = allXLabels.map(label => {
                 const row: any = { label };
                 config.multiLineSeries!.forEach(s => {
@@ -154,11 +175,10 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
         };
       }
 
-      // CASO 3: Formato "Flat" (Simples & Novo AdminPanel - Barras/Pizza)
+      // CASO 3: Formato "Flat"
       if (config.data && Array.isArray(config.data) && config.data.length > 0) {
         const first = config.data[0];
         if (!('values' in first) && !('series' in first)) {
-          // Detecta se tem chaves especiais (barValue/lineValue)
           if (first.barValue !== undefined || first.lineValue !== undefined) {
                return { processedData: config.data, dataKeys: ['barValue', 'lineValue'], isComplex: false };
           }
@@ -190,18 +210,17 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
       );
     }
 
-    // Margens ajustadas para evitar cortes
     const commonMargin = { top: 20, right: 30, bottom: 20, left: 50 };
     const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.05)];
 
-    // 0. Renderização de Múltiplas Linhas (Nova Estrutura)
+    // Renderização MultiLine
     if (isMultiLine && multiLineSeriesConfig) {
         return (
             <LineChart data={processedData} margin={commonMargin}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={true} />
                 <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} padding={{ left: 20, right: 20 }} />
                 <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
-                <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend wrapperStyle={{ paddingTop: '10px' }} />
                 {multiLineSeriesConfig.map((series, index) => (
                     <Line 
@@ -219,229 +238,132 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
         );
     }
 
-    // NOVO: Detecta se é o formato misto do novo AdminPanel (com barValue e lineValue) para Barras/Composed
+    // Renderização Mista (barValue/lineValue)
     if (processedData.length > 0 && (processedData[0].barValue !== undefined || processedData[0].lineValue !== undefined)) {
-        // Verifica se realmente existe dado de linha para desenhar
         const hasLineData = processedData.some((d: any) => d.lineValue !== undefined && d.lineValue !== null);
-
-        // -- RENDERIZAÇÃO ESPECÍFICA BASEADA NO TIPO --
         
-        // 1. PIZZA
         if (type === 'pie') {
              return (
               <PieChart>
                  <Pie
-                  data={processedData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                    const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                    const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
-                    const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
-                    return percent > 0.05 ? (
-                      <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
-                        {`${(percent * 100).toFixed(0)}%`}
-                      </text>
-                    ) : null;
-                  }}
-                  outerRadius={80}
-                  dataKey="barValue" // Usa o valor principal
-                  nameKey="label"
+                  data={processedData} cx="50%" cy="50%" labelLine={false}
+                  label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : null}
+                  outerRadius={80} dataKey="barValue" nameKey="label"
                 >
                   {processedData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.2)" />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+                <Tooltip content={<CustomTooltip />} />
                 <Legend />
               </PieChart>
             );
         }
 
-        // 2. LINHA LEGADA (Caso não use multiLineSeries mas use o builder antigo em modo Line)
         if (type === 'line') {
              return (
-                <ComposedChart 
-                    data={processedData} 
-                    margin={commonMargin}
-                >
-                  <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
+                <ComposedChart data={processedData} margin={commonMargin}>
+                  <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={true} />
                   <XAxis dataKey="label" scale="point" padding={{ left: 60, right: 60 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
-                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} tickCount={5} interval={0} />
-                  <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+                  <Tooltip content={<CustomTooltip />} />
                   <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                  
-                  <Line 
-                    type="monotone"
-                    dataKey="barValue" 
-                    name={barLabel || "Valor"} 
-                    stroke={mainColor || '#10b981'} 
-                    strokeWidth={3} 
-                    dot={{ r: 4 }} 
-                    activeDot={{ r: 6 }}
-                  />
-                  
+                  <Line type="monotone" dataKey="barValue" name={barLabel || "Valor"} stroke={mainColor || '#10b981'} strokeWidth={3} dot={{ r: 4 }} />
                   {hasLineData && (
-                    <Line type="monotone" dataKey="lineValue" name={lineLabel || "Meta"} stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} strokeDasharray="5 5" />
+                    <Line type="monotone" dataKey="lineValue" name={lineLabel || "Meta"} stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} strokeDasharray="5 5" />
                   )}
                 </ComposedChart>
             );
         }
 
-        // 3. BARRA (Default - ComposedChart Misto)
         return (
-            <ComposedChart 
-                data={processedData} 
-                margin={commonMargin}
-                barCategoryGap="60%"
-                barGap={0}
-            >
-              <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
-              <XAxis 
-                dataKey="label" 
-                scale="point" 
-                padding={{ left: 60, right: 60 }} 
-                stroke="#94a3b8" 
-                fontSize={11} 
-                tickLine={false} 
-              />
-              <YAxis 
-                stroke="#94a3b8" 
-                fontSize={11} 
-                tickLine={false} 
-                domain={domainWithPadding} 
-                tickFormatter={formatValue}
-                tickCount={5}
-                interval={0}
-              />
-              <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+            <ComposedChart data={processedData} margin={commonMargin} barCategoryGap="60%" barGap={0}>
+              <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={true} />
+              <XAxis dataKey="label" scale="point" padding={{ left: 60, right: 60 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+              <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ paddingTop: '10px' }} />
-              
-              <Bar 
-                dataKey="barValue" 
-                name={barLabel || "Valor"} 
-                radius={[6, 6, 0, 0]} 
-                maxBarSize={90}
-              >
+              <Bar dataKey="barValue" name={barLabel || "Valor"} radius={[6, 6, 0, 0]} maxBarSize={90}>
                  {processedData.map((entry: any, i: number) => (
                   <Cell key={`cell-${i}`} fill={entry.color || '#10b981'} />
                 ))}
               </Bar>
               {hasLineData && (
-                <Line type="monotone" dataKey="lineValue" name={lineLabel || "Meta"} stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="lineValue" name={lineLabel || "Meta"} stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
               )}
             </ComposedChart>
         );
     }
 
+    // Renderização Complexa (Legado)
     if (isComplex && complexConfig && complexConfig.series) {
       return (
-        <ComposedChart 
-            data={processedData} 
-            margin={commonMargin}
-            barCategoryGap="45%"
-            barGap={0}
-        >
-          <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={false} />
+        <ComposedChart data={processedData} margin={commonMargin} barCategoryGap="45%">
+          <CartesianGrid stroke="#334155" strokeDasharray="3 3" vertical={true} />
           <XAxis dataKey="label" scale="point" padding={{ left: 10, right: 10 }} stroke="#94a3b8" fontSize={11} tickLine={false} />
-          <YAxis yAxisId="left" orientation="left" stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} label={complexConfig.yAxes?.left?.title ? { value: complexConfig.yAxes.left.title, angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 } : undefined} />
-          <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} tickLine={false} hide={!complexConfig.yAxes?.right} domain={domainWithPadding} label={complexConfig.yAxes?.right?.title ? { value: complexConfig.yAxes.right.title, angle: 90, position: 'insideRight', fill: '#94a3b8', fontSize: 10 } : undefined} />
-          <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+          <YAxis yAxisId="left" stroke="#94a3b8" fontSize={11} tickLine={false} domain={domainWithPadding} />
+          <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={11} hide={!complexConfig.yAxes?.right} />
+          <Tooltip content={<CustomTooltip />} />
           <Legend wrapperStyle={{ paddingTop: '10px' }} />
           {complexConfig.series.map((serie, index) => {
             if (!serie) return null; 
             const serieColor = serie.color || COLORS[index % COLORS.length];
             const yAxisId = serie.yAxis === 'right' ? 'right' : 'left';
             const dataKey = serie.name || serie.label || `series_${index}`;
-            if (serie.type === 'line') {
-              return <Line key={dataKey} type="monotone" dataKey={dataKey} name={dataKey} stroke={serieColor} strokeWidth={3} yAxisId={yAxisId} dot={{ r: 4 }} activeDot={{ r: 6 }} />;
-            } else {
-              return <Bar key={dataKey} dataKey={dataKey} name={dataKey} fill={serieColor} yAxisId={yAxisId} radius={[4, 4, 0, 0]} maxBarSize={60} />;
-            }
+            return serie.type === 'line' ? (
+              <Line key={dataKey} type="monotone" dataKey={dataKey} name={dataKey} stroke={serieColor} strokeWidth={3} yAxisId={yAxisId} dot={{ r: 4 }} />
+            ) : (
+              <Bar key={dataKey} dataKey={dataKey} name={dataKey} fill={serieColor} yAxisId={yAxisId} radius={[4, 4, 0, 0]} maxBarSize={60} />
+            );
           })}
         </ComposedChart>
       );
     }
 
+    // Tipos básicos (Line, Pie, Bar)
     switch (type) {
       case 'line':
         return (
           <LineChart data={processedData} margin={commonMargin}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={true} />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
             <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
-            <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+            <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
-              <Line key={key} type="monotone" dataKey={key} name={key === 'value' ? 'Valor' : key} stroke={COLORS[index % COLORS.length]} strokeWidth={3} activeDot={{ r: 6 }} />
+              <Line key={key} type="monotone" dataKey={key} name={key} stroke={COLORS[index % COLORS.length]} strokeWidth={3} dot={{ r: 4 }} />
             ))}
           </LineChart>
         );
       case 'pie':
-        const pieDataKey = dataKeys[0] || 'value';
         return (
           <PieChart>
              <Pie
-              data={processedData}
-              cx="50%"
-              cy="50%"
-              labelLine={false}
-              label={({ cx, cy, midAngle, innerRadius, outerRadius, percent }) => {
-                const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-                const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
-                const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);
-                return percent > 0.05 ? (
-                  <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
-                    {`${(percent * 100).toFixed(0)}%`}
-                  </text>
-                ) : null;
-              }}
-              outerRadius={80}
-              dataKey={pieDataKey}
-              nameKey="label"
+              data={processedData} cx="50%" cy="50%" labelLine={false}
+              label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : null}
+              outerRadius={80} dataKey={dataKeys[0] || 'value'} nameKey="label"
             >
               {processedData.map((entry: any, index: number) => (
-                <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.2)" />
+                <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value: number) => [formatValue(value), '']} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+            <Tooltip content={<CustomTooltip />} />
             <Legend />
           </PieChart>
         );
       case 'bar':
       default:
         return (
-          <BarChart 
-            data={processedData} 
-            margin={commonMargin}
-            barCategoryGap="60%"
-            barGap={0}
-          >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" />
+          <BarChart data={processedData} margin={commonMargin} barCategoryGap="60%">
+            <CartesianGrid strokeDasharray="3 3" vertical={true} stroke="#334155" />
             <XAxis dataKey="label" stroke="#94a3b8" fontSize={12} tickLine={false} />
-            <YAxis 
-                stroke="#94a3b8" 
-                fontSize={12} 
-                tickLine={false} 
-                domain={domainWithPadding} 
-                tickFormatter={formatValue} 
-                tickCount={5}
-                interval={0}
-            />
-            <Tooltip formatter={(value: number) => [formatValue(value), '']} cursor={{ fill: '#334155', opacity: 0.4 }} contentStyle={tooltipContentStyle} itemStyle={tooltipItemStyle} />
+            <YAxis stroke="#94a3b8" fontSize={12} tickLine={false} domain={domainWithPadding} tickFormatter={formatValue} />
+            <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ paddingTop: '10px' }} />
             {dataKeys.map((key, index) => (
-              <Bar 
-                key={key} 
-                dataKey={key} 
-                name={key === 'value' ? 'Quantidade' : key} 
-                fill={dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length]} 
-                radius={[6, 6, 0, 0]}
-                maxBarSize={90}
-               >
+              <Bar key={key} dataKey={key} name={key} fill={mainColor || COLORS[index % COLORS.length]} radius={[6, 6, 0, 0]} maxBarSize={90}>
                 {processedData.map((entry: any, i: number) => (
-                  <Cell key={`cell-${i}`} fill={entry.color || (dataKeys.length === 1 && mainColor ? mainColor : COLORS[index % COLORS.length])} />
+                  <Cell key={`cell-${i}`} fill={entry.color || mainColor || COLORS[index % COLORS.length]} />
                 ))}
               </Bar>
             ))}
@@ -452,7 +374,6 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
 
   return (
     <div className="w-full h-full min-h-[300px] flex flex-col relative">
-      {/* Título interno exibido de foroma fixa e estilizada como legenda */}
       {title && (
           <div className="w-full text-center pb-2 z-10">
               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest bg-[#0B1120]/50 px-3 py-1 rounded-full border border-slate-800">
