@@ -1,6 +1,5 @@
-
 import React, { useState, useRef } from 'react';
-import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown, Columns, Layers, Check } from 'lucide-react';
+import { X, Trash2, Plus, Lock, TrendingUp, TrendingDown, Minus, History, ShieldAlert, Target, AlertTriangle, Calendar, FileText, Info, ListChecks, Clock, CheckCircle2, AlertCircle, ClipboardList, Pencil, BookOpen, AlertOctagon, GraduationCap, Link as LinkIcon, PieChart, BarChart, LineChart, GripVertical, Filter, ToggleLeft, ToggleRight, Code, Upload, FileSpreadsheet, LayoutTemplate, ArrowLeftRight, ArrowUpDown, Columns, Layers, Check, Search } from 'lucide-react';
 import { ChartConfig, Post, TopicId, SemaforoConfig, ProgressUpdate, ReportSection } from '../types';
 import { TOPICS } from '../constants';
 import { read, utils } from 'xlsx';
@@ -107,6 +106,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
 
   // Filter State
   const [filterTopic, setFilterTopic] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   // Sort State
   const [sortOrder, setSortOrder] = useState<'default' | 'alpha'>('default');
 
@@ -440,6 +440,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Filtragem e Ordenação
   const filteredPosts = posts
     .filter(p => filterTopic === 'all' || p.topicId === filterTopic)
+    .filter(p => {
+        if (!searchTerm) return true;
+        const name = p.indicatorName || p.chartConfig.title || '';
+        return name.toLowerCase().includes(searchTerm.toLowerCase());
+    })
     .sort((a, b) => {
         if (sortOrder === 'alpha') {
             const nameA = a.indicatorName || a.chartConfig.title || '';
@@ -1391,7 +1396,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                          <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{filteredPosts.length} Cadastrados</p>
                     </div>
                     
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                            <input 
+                                type="text" 
+                                placeholder="Buscar indicador..." 
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                                className="w-56 bg-slate-900 text-white text-xs font-bold pl-10 pr-4 py-2.5 rounded-xl border border-slate-700 focus:border-emerald-500 outline-none transition-colors placeholder:text-slate-500 placeholder:font-medium"
+                            />
+                        </div>
+
                         <div className="relative">
                             <select 
                                 value={sortOrder} 
