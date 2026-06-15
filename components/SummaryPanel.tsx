@@ -114,7 +114,37 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                 </h2>
                 <p className="text-sm text-slate-400">Monitoramento consolidado de todas as secretarias.</p>
             </div>
-            <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-2xl border border-slate-800">
+            <div className="flex flex-wrap items-center gap-3 bg-slate-950 p-2 rounded-2xl border border-slate-800">
+                <div className="flex bg-slate-900 rounded-xl p-1 border border-slate-700">
+                    {[
+                        { id: 'all', label: 'Todos', color: 'bg-slate-700' },
+                        { id: 'green', label: 'Normal', color: 'bg-emerald-600' },
+                        { id: 'yellow', label: 'Atenção', color: 'bg-amber-600' },
+                        { id: 'red', label: 'Crítico', color: 'bg-red-600' }
+                    ].map(opt => (
+                        <button
+                            key={opt.id}
+                            onClick={() => {
+                                setFilterStatuses(prev => {
+                                    if (opt.id === 'all') return ['all'];
+                                    let next = prev.filter(s => s !== 'all');
+                                    if (next.includes(opt.id)) {
+                                        next = next.filter(s => s !== opt.id);
+                                        return next.length === 0 ? ['all'] : next;
+                                    } else {
+                                        return [...next, opt.id];
+                                    }
+                                });
+                            }}
+                            className={`px-3 py-1.5 text-[10px] font-black uppercase rounded-lg transition-all ${filterStatuses.includes(opt.id) ? `${opt.color} text-white shadow-lg` : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            {opt.label}
+                        </button>
+                    ))}
+                </div>
+                
+                <div className="h-6 w-px bg-slate-800 hidden md:block"></div>
+                
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                     <input 
@@ -174,36 +204,6 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                 </div>
             </div>
 
-            <div className="flex-1 min-w-[200px]">
-                <label className="text-[10px] font-black text-slate-500 uppercase mb-2 block">Filtrar por Status</label>
-                <div className="flex bg-slate-900 rounded-xl p-1 border border-slate-700">
-                    {[
-                        { id: 'all', label: 'Todos', color: 'bg-slate-700' },
-                        { id: 'green', label: 'Normal', color: 'bg-emerald-600' },
-                        { id: 'yellow', label: 'Atenção', color: 'bg-amber-600' },
-                        { id: 'red', label: 'Crítico', color: 'bg-red-600' }
-                    ].map(opt => (
-                        <button
-                            key={opt.id}
-                            onClick={() => {
-                                setFilterStatuses(prev => {
-                                    if (opt.id === 'all') return ['all'];
-                                    let next = prev.filter(s => s !== 'all');
-                                    if (next.includes(opt.id)) {
-                                        next = next.filter(s => s !== opt.id);
-                                        return next.length === 0 ? ['all'] : next;
-                                    } else {
-                                        return [...next, opt.id];
-                                    }
-                                });
-                            }}
-                            className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${filterStatuses.includes(opt.id) ? `${opt.color} text-white shadow-lg` : 'text-slate-500 hover:text-slate-300'}`}
-                        >
-                            {opt.label}
-                        </button>
-                    ))}
-                </div>
-            </div>
         </div>
       </div>
 
