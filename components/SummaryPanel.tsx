@@ -12,7 +12,7 @@ interface SummaryPanelProps {
 
 export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
   const [filterTopic, setFilterTopic] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatuses, setFilterStatuses] = useState<string[]>(['all']);
   const [filterRecorrencia, setFilterRecorrencia] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'default' | 'alpha'>('default');
@@ -33,7 +33,7 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
   const filteredPosts = posts.filter(post => {
     const matchesTopic = filterTopic === 'all' || post.topicId === filterTopic;
     const postStatus = post.semaforoGeral || 'green';
-    const matchesStatus = filterStatus === 'all' || postStatus === filterStatus;
+    const matchesStatus = filterStatuses.includes('all') || filterStatuses.includes(postStatus);
     const matchesRecorrencia = filterRecorrencia === 'all' || post.recorrencia === filterRecorrencia;
     const matchesSearch = (post.indicatorName || post.chartConfig.title).toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -185,8 +185,19 @@ export const SummaryPanel: React.FC<SummaryPanelProps> = ({ posts }) => {
                     ].map(opt => (
                         <button
                             key={opt.id}
-                            onClick={() => setFilterStatus(opt.id)}
-                            className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${filterStatus === opt.id ? `${opt.color} text-white shadow-lg` : 'text-slate-500 hover:text-slate-300'}`}
+                            onClick={() => {
+                                setFilterStatuses(prev => {
+                                    if (opt.id === 'all') return ['all'];
+                                    let next = prev.filter(s => s !== 'all');
+                                    if (next.includes(opt.id)) {
+                                        next = next.filter(s => s !== opt.id);
+                                        return next.length === 0 ? ['all'] : next;
+                                    } else {
+                                        return [...next, opt.id];
+                                    }
+                                });
+                            }}
+                            className={`flex-1 py-2 text-[10px] font-black uppercase rounded-lg transition-all ${filterStatuses.includes(opt.id) ? `${opt.color} text-white shadow-lg` : 'text-slate-500 hover:text-slate-300'}`}
                         >
                             {opt.label}
                         </button>
