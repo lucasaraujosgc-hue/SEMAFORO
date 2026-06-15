@@ -200,7 +200,7 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
   
   // Estados para filtros e busca
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterStatuses, setFilterStatuses] = useState<string[]>(['all']);
   const [filterRecorrencia, setFilterRecorrencia] = useState('all');
   const [sortBy, setSortBy] = useState<'default' | 'alpha' | 'status'>('default');
 
@@ -217,7 +217,7 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
   const processedPosts = useMemo(() => {
       let result = topicPosts.filter(post => {
           const matchesSearch = (post.indicatorName || post.chartConfig.title).toLowerCase().includes(searchTerm.toLowerCase());
-          const matchesStatus = filterStatus === 'all' || (post.semaforoGeral || 'green') === filterStatus;
+          const matchesStatus = filterStatuses.includes('all') || filterStatuses.includes(post.semaforoGeral || 'green');
           const matchesRecorrencia = filterRecorrencia === 'all' || post.recorrencia === filterRecorrencia;
           return matchesSearch && matchesStatus && matchesRecorrencia;
       });
@@ -235,7 +235,7 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
       // 'default' mantém a ordem original (que já é baseada no campo 'order' do banco)
 
       return result;
-  }, [topicPosts, searchTerm, filterStatus, filterRecorrencia, sortBy]);
+  }, [topicPosts, searchTerm, filterStatuses, filterRecorrencia, sortBy]);
 
   if (!topic) return <div className="text-center py-20">Não encontrado</div>;
 
@@ -249,33 +249,47 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
         </div>
 
         {/* Barra de Ferramentas (Filtros e Busca) */}
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+        <div className="flex flex-col sm:flex-row flex-wrap gap-3 w-full md:w-auto md:items-center">
             
+            {/* Filtro Status */}
+            <div className="flex bg-slate-900 rounded-xl p-1 border border-slate-800 shrink-0 overflow-x-auto w-full sm:w-auto">
+                {[
+                    { id: 'all', label: 'Todos', color: 'bg-slate-700' },
+                    { id: 'green', label: 'Normal', color: 'bg-emerald-600' },
+                    { id: 'yellow', label: 'Atenção', color: 'bg-amber-600' },
+                    { id: 'red', label: 'Crítico', color: 'bg-red-600' }
+                ].map(opt => (
+                    <button
+                        key={opt.id}
+                        onClick={() => {
+                            setFilterStatuses(prev => {
+                                if (opt.id === 'all') return ['all'];
+                                let next = prev.filter(s => s !== 'all');
+                                if (next.includes(opt.id)) {
+                                    next = next.filter(s => s !== opt.id);
+                                    return next.length === 0 ? ['all'] : next;
+                                } else {
+                                    return [...next, opt.id];
+                                }
+                            });
+                        }}
+                        className={`whitespace-nowrap px-3 py-1.5 text-[10px] sm:text-xs font-black uppercase rounded-lg transition-all flex-1 sm:flex-none ${filterStatuses.includes(opt.id) ? `${opt.color} text-white shadow-lg` : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                        {opt.label}
+                    </button>
+                ))}
+            </div>
+
             {/* Busca */}
-            <div className="relative group">
+            <div className="relative group flex-1 md:flex-none">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-emerald-500 transition-colors" size={14} />
                 <input 
                     type="text" 
                     placeholder="Buscar..." 
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
-                    className="w-full sm:w-40 bg-slate-900 text-white text-xs py-2.5 pl-9 pr-4 rounded-xl border border-slate-800 outline-none focus:border-emerald-500 transition-all"
+                    className="w-full sm:w-40 bg-slate-900 text-white text-xs py-2.5 pl-9 pr-4 rounded-xl border border-slate-800 outline-none focus:border-emerald-500 transition-all font-medium placeholder:text-slate-500"
                 />
-            </div>
-
-            {/* Filtro Status */}
-            <div className="relative">
-                <select 
-                    value={filterStatus} 
-                    onChange={e => setFilterStatus(e.target.value)}
-                    className="w-full sm:w-32 appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-3 pr-8 py-2.5 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-all"
-                >
-                    <option value="all">Todos Status</option>
-                    <option value="green">Normal</option>
-                    <option value="yellow">Atenção</option>
-                    <option value="red">Crítico</option>
-                </select>
-                <div className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none w-2 h-2 rounded-full ${filterStatus === 'green' ? 'bg-emerald-500' : filterStatus === 'yellow' ? 'bg-amber-500' : filterStatus === 'red' ? 'bg-red-500' : 'bg-slate-600'}`}></div>
             </div>
 
             {/* Filtro Periodicidade */}
