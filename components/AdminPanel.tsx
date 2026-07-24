@@ -622,10 +622,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                </div>
                
                <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                  {Array.from(new Set(posts.map(p => p.report?.secretaria || 'Sem Secretaria'))).map(sec => {
-                      const postsSec = posts.filter(p => (p.report?.secretaria || 'Sem Secretaria') === sec);
+                  {TOPICS.map(topic => {
+                      const postsSec = posts.filter(p => p.topicId === topic.id);
+                      if (postsSec.length === 0) return null;
                       return (
-                          <div key={sec} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
+                          <div key={topic.id} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
                               <div className="flex items-center gap-3 mb-3 border-b border-slate-700 pb-2">
                                   <input 
                                       type="checkbox" 
@@ -639,7 +640,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                           }
                                       }}
                                   />
-                                  <h4 className="font-black text-white">{sec}</h4>
+                                  <h4 className="font-black text-white">{topic.label}</h4>
                               </div>
                               <div className="pl-7 space-y-2">
                                   {postsSec.map(p => (
