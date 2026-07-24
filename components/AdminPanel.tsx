@@ -530,6 +530,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                 resumoDecisoes: post.report.resumoDecisoes,
             },
             dadosGrafico: post.chartConfig,
+            calibragemSemaforo: {
+                semaforoGeral: post.semaforoGeral,
+                regras: post.semaforoRules,
+            },
             informacoesIndicador: {
                 indicadoresChave: post.report.indicadoresChave,
             }
