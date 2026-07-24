@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bot, X, Send, Paperclip, Loader2, Image as ImageIcon, FileText } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-export const AIAssistant = () => {
+export const AIAssistant = ({ posts = [] }: { posts?: any[] }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<{ role: 'user' | 'assistant', text: string, fileInfo?: { name: string, type: string } }[]>([]);
     const [input, setInput] = useState('');
@@ -68,10 +68,21 @@ export const AIAssistant = () => {
 
         try {
             const filesPayload = fileToSend ? [{ base64: fileToSend.base64, mimeType: fileToSend.mimeType }] : undefined;
+            
+            // Serializa indicadores de forma resumida para contexto
+            const systemData = posts.map(p => ({
+                topico: p.topicId,
+                nome: p.indicatorName,
+                secretaria: p.report?.secretaria,
+                status: p.semaforoGeral,
+                progresso: p.progress,
+                indicadoresChave: p.report?.indicadoresChave?.map((i: any) => `${i.nome}: ${i.resultado} (Meta: ${i.meta}) [Status: ${i.status}]`),
+            }));
+
             const response = await fetch('/api/gemini/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMsg, files: filesPayload })
+                body: JSON.stringify({ message: userMsg, files: filesPayload, systemContext: systemData })
             });
             const data = await response.json();
 

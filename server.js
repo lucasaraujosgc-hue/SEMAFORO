@@ -138,8 +138,11 @@ app.post('/api/gemini/chat', async (req, res) => {
     return res.status(500).json({ error: 'API key do Gemini não configurada no servidor.' });
   }
   try {
-    const { message, files } = req.body;
+    const { message, files, systemContext } = req.body;
     let parts = [];
+    if (systemContext) {
+       parts.push({ text: "CONTEXTO DO SISTEMA ATUAL:\n" + JSON.stringify(systemContext, null, 2) + "\n\n" });
+    }
     if (message) {
       parts.push({ text: message });
     }

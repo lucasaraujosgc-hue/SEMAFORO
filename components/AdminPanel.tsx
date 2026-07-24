@@ -622,15 +622,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                </div>
                
                <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
-                  {Array.from(new Set(posts.map(p => p.report.secretaria).filter(Boolean))).map(sec => {
-                      const postsSec = posts.filter(p => p.report.secretaria === sec);
+                  {Array.from(new Set(posts.map(p => p.report?.secretaria || 'Sem Secretaria'))).map(sec => {
+                      const postsSec = posts.filter(p => (p.report?.secretaria || 'Sem Secretaria') === sec);
                       return (
                           <div key={sec} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
                               <div className="flex items-center gap-3 mb-3 border-b border-slate-700 pb-2">
                                   <input 
                                       type="checkbox" 
                                       className="w-4 h-4 rounded bg-slate-900 border-slate-600 text-emerald-500 focus:ring-emerald-500"
-                                      checked={postsSec.every(p => exportSelectedIndicadores.includes(p.id))}
+                                      checked={postsSec.length > 0 && postsSec.every(p => exportSelectedIndicadores.includes(p.id))}
                                       onChange={e => {
                                           if (e.target.checked) {
                                               setExportSelectedIndicadores(prev => Array.from(new Set([...prev, ...postsSec.map(p => p.id)])));
@@ -656,7 +656,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                   }
                                               }}
                                           />
-                                          {p.indicatorName}
+                                          {p.indicatorName || p.description}
                                       </label>
                                   ))}
                               </div>
@@ -807,6 +807,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                     );
                                 })}
                             </div>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-500 uppercase">Secretaria</label>
+                            <input value={report.secretaria} onChange={e => setReport({...report, secretaria: e.target.value})} placeholder="Ex: Saúde, Educação" className="w-full p-4 bg-slate-900 border border-slate-800 rounded-2xl text-white text-sm" />
                         </div>
                         <div className="space-y-2">
                             <label className="text-[10px] font-black text-slate-500 uppercase">Resp. Político</label>
