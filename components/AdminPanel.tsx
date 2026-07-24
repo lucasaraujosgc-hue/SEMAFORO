@@ -83,7 +83,7 @@ interface LineSeriesState {
   id: string; // Para manipulação interna
   label: string;
   color: string;
-  data: Array<{ x: string; y: number }>;
+  data: Array<{ x: string; y: number; status?: 'green' | 'yellow' | 'red' }>;
 }
 
 interface BuilderRow {
@@ -107,6 +107,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   // Filter State
   const [filterTopic, setFilterTopic] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Export State
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportSelectedIndicadores, setExportSelectedIndicadores] = useState<string[]>([]);
+
   // Sort State
   const [sortOrder, setSortOrder] = useState<'default' | 'alpha'>('default');
 
@@ -491,10 +496,53 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
       setLineSeries(newSeries);
   };
 
-  const updateSeriesPoint = (seriesIndex: number, pointIndex: number, field: 'x' | 'y', value: any) => {
+  const updateSeriesPoint = (seriesIndex: number, pointIndex: number, field: 'x' | 'y' | 'status', value: any) => {
       const newSeries = [...lineSeries];
       (newSeries[seriesIndex].data[pointIndex] as any)[field] = value;
       setLineSeries(newSeries);
+  };
+
+  const openExportModal = () => {
+    setExportSelectedIndicadores(posts.map(p => p.id));
+    setIsExportModalOpen(true);
+  };
+
+  const confirmExportData = () => {
+    // Topicos 1, 2, 3, 5
+    const postsToExport = posts.filter(p => exportSelectedIndicadores.includes(p.id));
+    const exportPayload = postsToExport.map(post => {
+        return {
+            topicId: post.topicId,
+            indicatorName: post.indicatorName,
+            identificacaoEstrategia: {
+                objetivo: post.report.objetivo,
+                importanciaPrefeito: post.report.importanciaPrefeito,
+                formula: post.report.formula,
+                acaoCrise: post.report.acaoCrise,
+                secretaria: post.report.secretaria,
+                periodo: post.report.periodo,
+                responsavelPolitico: post.report.responsavelPolitico,
+                responsavelTecnico: post.report.responsavelTecnico,
+            },
+            resumoExecutivo: {
+                resumoAvanços: post.report.resumoAvanços,
+                resumoAtrasos: post.report.resumoAtrasos,
+                resumoDecisoes: post.report.resumoDecisoes,
+            },
+            dadosGrafico: post.chartConfig,
+            informacoesIndicador: {
+                indicadoresChave: post.report.indicadoresChave,
+            }
+        };
+    });
+    const blob = new Blob([JSON.stringify(exportPayload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `indicadores_export_${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setIsExportModalOpen(false);
   };
 
   // Drag and Drop Logic
@@ -564,6 +612,69 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
   }
 
   return (
+    <>
+    {isExportModalOpen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 p-4 backdrop-blur-sm">
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl p-6 w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl">
+               <div className="flex justify-between items-center mb-6">
+                   <h3 className="text-xl font-black text-white uppercase flex items-center gap-2"><Upload size={20} className="text-emerald-500" /> Exportar Dados</h3>
+                   <button onClick={() => setIsExportModalOpen(false)} className="text-slate-500 hover:text-white"><X size={20}/></button>
+               </div>
+               
+               <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
+                  {Array.from(new Set(posts.map(p => p.report.secretaria).filter(Boolean))).map(sec => {
+                      const postsSec = posts.filter(p => p.report.secretaria === sec);
+                      return (
+                          <div key={sec} className="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
+                              <div className="flex items-center gap-3 mb-3 border-b border-slate-700 pb-2">
+                                  <input 
+                                      type="checkbox" 
+                                      className="w-4 h-4 rounded bg-slate-900 border-slate-600 text-emerald-500 focus:ring-emerald-500"
+                                      checked={postsSec.every(p => exportSelectedIndicadores.includes(p.id))}
+                                      onChange={e => {
+                                          if (e.target.checked) {
+                                              setExportSelectedIndicadores(prev => Array.from(new Set([...prev, ...postsSec.map(p => p.id)])));
+                                          } else {
+                                              setExportSelectedIndicadores(prev => prev.filter(id => !postsSec.some(p => p.id === id)));
+                                          }
+                                      }}
+                                  />
+                                  <h4 className="font-black text-white">{sec}</h4>
+                              </div>
+                              <div className="pl-7 space-y-2">
+                                  {postsSec.map(p => (
+                                      <label key={p.id} className="flex items-center gap-3 text-sm text-slate-300 cursor-pointer hover:text-white transition-colors">
+                                          <input 
+                                              type="checkbox"
+                                              className="w-4 h-4 rounded bg-slate-900 border-slate-600 text-emerald-500 focus:ring-emerald-500"
+                                              checked={exportSelectedIndicadores.includes(p.id)}
+                                              onChange={e => {
+                                                  if (e.target.checked) {
+                                                      setExportSelectedIndicadores(prev => [...prev, p.id]);
+                                                  } else {
+                                                      setExportSelectedIndicadores(prev => prev.filter(id => id !== p.id));
+                                                  }
+                                              }}
+                                          />
+                                          {p.indicatorName}
+                                      </label>
+                                  ))}
+                              </div>
+                          </div>
+                      )
+                  })}
+               </div>
+               
+               <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-slate-800">
+                   <button onClick={() => setIsExportModalOpen(false)} className="px-6 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl text-white font-bold text-sm transition-all uppercase">Cancelar</button>
+                   <button onClick={confirmExportData} disabled={exportSelectedIndicadores.length === 0} className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-white font-black text-sm disabled:opacity-50 transition-all uppercase flex items-center gap-2 shadow-lg shadow-emerald-900/50">
+                       <Upload size={16} />
+                       Exportar Selecionados
+                   </button>
+               </div>
+            </div>
+        </div>
+    )}
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
       <div className="bg-[#0f172a] border border-slate-800 rounded-[2rem] w-full max-w-6xl h-[95vh] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
         
@@ -577,6 +688,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
             <div className="flex bg-slate-800/50 p-1.5 rounded-2xl">
               <button onClick={() => setActiveTab('add')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'add' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}>{editingPostId ? 'Editar' : 'Novo'}</button>
               <button onClick={() => setActiveTab('list')} className={`px-6 py-2 rounded-xl text-xs font-black uppercase transition-all ${activeTab === 'list' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'}`}>Catálogo</button>
+              <button onClick={openExportModal} className="px-6 py-2 rounded-xl text-xs font-black uppercase transition-all text-slate-400 hover:text-white hover:bg-slate-700/50 flex items-center gap-2" title="Exportar Dados (Tópicos 1, 2, 3 e 5)"><Upload size={14} /> Exportar</button>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-full text-slate-500"><X size={24}/></button>
@@ -879,6 +991,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
                                                                     className="w-24 bg-slate-950 border border-slate-800 p-2 rounded-lg text-emerald-400 text-xs font-bold text-right" 
                                                                     placeholder="Valor"
                                                                 />
+                                                                <select 
+                                                                    value={point.status || ''} 
+                                                                    onChange={e => updateSeriesPoint(idx, pIdx, 'status', e.target.value || undefined)}
+                                                                    className="bg-slate-950 border border-slate-800 p-2 rounded-lg text-xs"
+                                                                >
+                                                                    <option value="">Nenhum Alerta</option>
+                                                                    <option value="green">🟢 Normal</option>
+                                                                    <option value="yellow">🟡 Atenção</option>
+                                                                    <option value="red">🔴 Crítico</option>
+                                                                </select>
                                                                 <button onClick={() => removePointFromSeries(idx, pIdx)} className="p-1.5 text-slate-700 hover:text-red-500"><X size={14}/></button>
                                                             </div>
                                                         ))}
@@ -1477,5 +1599,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({
         </div>
       </div>
     </div>
+    </>
   );
 };

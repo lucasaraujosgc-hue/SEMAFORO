@@ -145,7 +145,7 @@ export interface ChartConfig {
   multiLineSeries?: Array<{
     label: string;
     color: string;
-    data: Array<{ x: string; y: number }>;
+    data: Array<{ x: string; y: number; status?: 'green' | 'yellow' | 'red' }>;
   }>;
   series?: any[];
   color?: string; // Cor padrão

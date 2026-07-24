@@ -9,6 +9,7 @@ import { ChartRenderer } from './components/ChartRenderer';
 import { AdminPanel } from './components/AdminPanel';
 import { SummaryPanel } from './components/SummaryPanel';
 import { ReportModal, SemaforoWithTooltip, TrendBadge } from './components/ReportModal';
+import { AIAssistant } from './components/AIAssistant';
 
 function App() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -172,6 +173,7 @@ function App() {
             usingServer={usingServer}
           />
         )}
+        <AIAssistant />
       </div>
     </Router>
   );

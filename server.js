@@ -4,13 +4,27 @@ const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const { GoogleGenAI } = require('@google/genai');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Configuração do Gemini
+let ai;
+if (process.env.GEMINI_API_KEY) {
+  ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+    httpOptions: {
+      headers: {
+        'User-Agent': 'aistudio-build',
+      }
+    }
+  });
+}
+
 // Middleware
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
 
 // Configuração do Banco de Dados SQLite
 const dataDir = path.join(__dirname, 'data');
@@ -117,6 +131,45 @@ app.delete('/api/posts/:id', (req, res) => {
     }
     res.json({ message: 'Post deletado', changes: this.changes });
   });
+});
+
+app.post('/api/gemini/chat', async (req, res) => {
+  if (!ai) {
+    return res.status(500).json({ error: 'API key do Gemini não configurada no servidor.' });
+  }
+  try {
+    const { message, files } = req.body;
+    let parts = [];
+    if (message) {
+      parts.push({ text: message });
+    }
+    if (files && files.length > 0) {
+      for (const file of files) {
+        parts.push({
+          inlineData: {
+            mimeType: file.mimeType,
+            data: file.base64
+          }
+        });
+      }
+    }
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: { parts },
+      config: {
+        systemInstruction: "Você é um assistente IA analítico especializado em gestão de indicadores públicos municipais. Sua função é ajudar o usuário a ler informações, sugerir quebras de metas e cruzar dados. Responda em Markdown (use negrito, itálico, quebras de linha)."
+      }
+    });
+
+    res.json({ text: response.text });
+  } catch (err) {
+    console.error('Erro na API Gemini:', err);
+    if (err.status === 429 || (err.message && err.message.includes('429')) || (err.message && err.message.toLowerCase().includes('quota'))) {
+        return res.status(429).json({ error: 'O limite de uso gratuito da Inteligência Artificial foi atingido. Por favor, aguarde cerca de 1 a 2 minutos para que a cota seja restabelecida e tente novamente.' });
+    }
+    res.status(500).json({ error: 'Falha ao comunicar com a inteligência artificial.' });
+  }
 });
 
 app.use(express.static(path.join(__dirname, 'dist')));

@@ -2,5 +2,5 @@
   "name": "Novo Indicadores (SEMAFORO)",
   "description": "Painel interativo para gestão e visualização de indicadores municipais em diversas áreas como Saúde, Educação e Infraestrutura.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

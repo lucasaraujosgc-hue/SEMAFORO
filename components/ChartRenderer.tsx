@@ -55,6 +55,23 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+// --- NOVO COMPONENTE DE PONTO CUSTOMIZADO ---
+const CustomDot = (props: any) => {
+  const { cx, cy, payload, dataKey } = props;
+  const status = payload[`${dataKey}_status`];
+
+  if (status === 'green') {
+    return <text x={cx} y={cy} dy={4} textAnchor="middle" fontSize={14}>🟢</text>;
+  } else if (status === 'yellow') {
+    return <text x={cx} y={cy} dy={4} textAnchor="middle" fontSize={14}>🟡</text>;
+  } else if (status === 'red') {
+    return <text x={cx} y={cy} dy={4} textAnchor="middle" fontSize={14}>🔴</text>;
+  }
+
+  // Ponto padrão
+  return <circle cx={cx} cy={cy} r={4} stroke={props.stroke} strokeWidth={2} fill="#0f172a" />;
+};
+
 export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
   const { type, color: mainColor, barLabel, lineLabel, title } = config;
 
@@ -72,6 +89,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                     const point = s.data.find(d => d.x === label);
                     if (point) {
                         row[s.label] = point.y;
+                        row[`${s.label}_status`] = point.status;
                     }
                 });
                 return row;
@@ -230,7 +248,7 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
                         name={series.label} 
                         stroke={series.color || COLORS[index % COLORS.length]} 
                         strokeWidth={3} 
-                        dot={{ r: 4 }} 
+                        dot={<CustomDot />}
                         activeDot={{ r: 6 }} 
                     />
                 ))}
