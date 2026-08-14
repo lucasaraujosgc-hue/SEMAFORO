@@ -229,7 +229,17 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
     }
 
     const commonMargin = { top: 20, right: 30, bottom: 20, left: 50 };
-    const domainWithPadding: [number, any] = [0, (dataMax: number) => Math.ceil(dataMax * 1.05)];
+    const isLineChart = type === 'line' || isMultiLine;
+    const domainWithPadding: [any, any] = isLineChart 
+        ? [
+            (dataMin: number) => {
+                if (dataMin === 0) return 0;
+                // Aplica uma margem inferior para centralizar o gráfico se a variação for pequena
+                return Math.max(0, Math.floor(dataMin - (dataMin * 0.05)));
+            }, 
+            (dataMax: number) => Math.ceil(dataMax * 1.05)
+          ]
+        : [0, (dataMax: number) => Math.ceil(dataMax * 1.05)];
 
     // Renderização MultiLine
     if (isMultiLine && multiLineSeriesConfig) {
