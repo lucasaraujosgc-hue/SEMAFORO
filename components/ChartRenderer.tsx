@@ -271,19 +271,27 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
         const hasLineData = processedData.some((d: any) => d.lineValue !== undefined && d.lineValue !== null);
         
         if (type === 'pie') {
+             const total = processedData.reduce((acc: number, curr: any) => acc + (Number(curr.barValue) || 0), 0);
              return (
               <PieChart>
                  <Pie
                   data={processedData} cx="50%" cy="50%" labelLine={false}
                   label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : null}
-                  outerRadius={80} dataKey="barValue" nameKey="label"
+                  innerRadius={60}
+                  outerRadius={90} dataKey="barValue" nameKey="label"
                 >
                   {processedData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} stroke="rgba(0,0,0,0.2)" />
                   ))}
                 </Pie>
+                <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xl font-black">
+                  {formatValue(total)}
+                </text>
+                <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                  TOTAL
+                </text>
                 <Tooltip content={<CustomTooltip />} />
-                <Legend />
+                <Legend wrapperStyle={{ paddingTop: '20px' }} />
               </PieChart>
             );
         }
@@ -363,22 +371,32 @@ export const ChartRenderer: React.FC<ChartRendererProps> = ({ config }) => {
             ))}
           </LineChart>
         );
-      case 'pie':
+      case 'pie': {
+        const pieDataKey = dataKeys[0] || 'value';
+        const pieTotal = processedData.reduce((acc: number, curr: any) => acc + (Number(curr[pieDataKey]) || 0), 0);
         return (
           <PieChart>
              <Pie
               data={processedData} cx="50%" cy="50%" labelLine={false}
               label={({ percent }) => percent > 0.05 ? `${(percent * 100).toFixed(0)}%` : null}
-              outerRadius={80} dataKey={dataKeys[0] || 'value'} nameKey="label"
+              innerRadius={60}
+              outerRadius={90} dataKey={pieDataKey} nameKey="label"
             >
               {processedData.map((entry: any, index: number) => (
                 <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
               ))}
             </Pie>
+            <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="fill-white text-xl font-black">
+              {formatValue(pieTotal)}
+            </text>
+            <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="fill-slate-400 text-[10px] font-bold uppercase tracking-widest">
+              TOTAL
+            </text>
             <Tooltip content={<CustomTooltip />} />
-            <Legend />
+            <Legend wrapperStyle={{ paddingTop: '20px' }} />
           </PieChart>
         );
+      }
       case 'bar':
       default:
         return (
