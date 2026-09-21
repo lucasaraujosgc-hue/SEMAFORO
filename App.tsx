@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { HashRouter as Router, Routes, Route, useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert, ExternalLink, ArrowRight, LayoutDashboard, Search, Filter, ArrowUpDown } from 'lucide-react';
+import { ArrowLeft, Lock, Maximize2, X, User, Database, Info, History, TrendingUp, TrendingDown, Minus, Clock, FileText, AlertTriangle, CheckCircle2, Link as LinkIcon, Briefcase, Phone, Mail, ChevronRight, ChevronDown, ListChecks, Target, AlertCircle, Calendar, GraduationCap, ShieldAlert, ExternalLink, ArrowRight, LayoutDashboard, Search, Filter, ArrowUpDown } from 'lucide-react';
 import { TOPICS } from './constants';
 import { Post, TopicId, ChartConfig, ProgressUpdate } from './types';
 import { TopicCard } from './components/TopicCard';
@@ -203,24 +203,88 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
   // Estados para filtros e busca
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatuses, setFilterStatuses] = useState<string[]>(['all']);
-  const [filterRecorrencia, setFilterRecorrencia] = useState('all');
+  const [filterRecorrencias, setFilterRecorrencias] = useState<string[]>(['all']);
+  const [isPeriodMenuOpen, setIsPeriodMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'default' | 'alpha' | 'status'>('default');
+
+  const periodMenuRef = useRef<HTMLDivElement>(null);
 
   const topic = TOPICS.find(t => t.id === topicId);
   const topicPosts = posts.filter(p => p.topicId === topicId);
 
+  // Fecha menu de períodos ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (periodMenuRef.current && !periodMenuRef.current.contains(event.target as Node)) {
+        setIsPeriodMenuOpen(false);
+      }
+    };
+    if (isPeriodMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isPeriodMenuOpen]);
+
   // Extrair periodicidades únicas para este tópico
   const uniqueRecorrencias = useMemo(() => {
-      const recs = new Set(topicPosts.map(p => p.recorrencia).filter(Boolean));
+      const recs = new Set<string>();
+      topicPosts.forEach(p => {
+          if (!p.recorrencia) return;
+          const parts = p.recorrencia.split(',').map(s => s.trim()).filter(Boolean);
+          if (parts.length > 0) {
+              parts.forEach(part => recs.add(part));
+          } else {
+              recs.add(p.recorrencia.trim());
+          }
+      });
       return Array.from(recs).sort();
   }, [topicPosts]);
+
+  const toggleRecorrencia = (rec: string) => {
+      setFilterRecorrencias(prev => {
+          if (rec === 'all') return ['all'];
+          const withoutAll = prev.filter(r => r !== 'all');
+          if (withoutAll.includes(rec)) {
+              const next = withoutAll.filter(r => r !== rec);
+              return next.length === 0 ? ['all'] : next;
+          } else {
+              return [...withoutAll, rec];
+          }
+      });
+  };
+
+  const selectAllRecorrencias = () => {
+      setFilterRecorrencias(['all']);
+  };
+
+  const getRecorrenciaCount = (rec: string) => {
+      return topicPosts.filter(p => {
+          if (!p.recorrencia) return false;
+          const parts = p.recorrencia.split(',').map(s => s.trim().toLowerCase());
+          return parts.includes(rec.toLowerCase()) || p.recorrencia.toLowerCase() === rec.toLowerCase();
+      }).length;
+  };
 
   // Lógica de Filtragem e Ordenação
   const processedPosts = useMemo(() => {
       let result = topicPosts.filter(post => {
           const matchesSearch = (post.indicatorName || post.chartConfig.title).toLowerCase().includes(searchTerm.toLowerCase());
           const matchesStatus = filterStatuses.includes('all') || filterStatuses.includes(post.semaforoGeral || 'green');
-          const matchesRecorrencia = filterRecorrencia === 'all' || post.recorrencia === filterRecorrencia;
+          
+          let matchesRecorrencia = true;
+          if (!filterRecorrencias.includes('all') && filterRecorrencias.length > 0) {
+              if (!post.recorrencia) {
+                  matchesRecorrencia = false;
+              } else {
+                  const parts = post.recorrencia.split(',').map(s => s.trim().toLowerCase());
+                  matchesRecorrencia = filterRecorrencias.some(fr => 
+                      parts.includes(fr.toLowerCase()) || post.recorrencia.toLowerCase().includes(fr.toLowerCase())
+                  );
+              }
+          }
+
           return matchesSearch && matchesStatus && matchesRecorrencia;
       });
 
@@ -237,7 +301,7 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
       // 'default' mantém a ordem original (que já é baseada no campo 'order' do banco)
 
       return result;
-  }, [topicPosts, searchTerm, filterStatuses, filterRecorrencia, sortBy]);
+  }, [topicPosts, searchTerm, filterStatuses, filterRecorrencias, sortBy]);
 
   if (!topic) return <div className="text-center py-20">Não encontrado</div>;
 
@@ -294,17 +358,118 @@ const TopicDetailView = ({ posts, isLoading }: { posts: Post[], isLoading: boole
                 />
             </div>
 
-            {/* Filtro Periodicidade */}
-            <div className="relative">
-                <select 
-                    value={filterRecorrencia} 
-                    onChange={e => setFilterRecorrencia(e.target.value)}
-                    className="w-full sm:w-32 appearance-none bg-slate-900 text-white text-xs font-bold uppercase pl-3 pr-8 py-2.5 rounded-xl border border-slate-800 focus:border-emerald-500 outline-none cursor-pointer hover:bg-slate-800 transition-all"
+            {/* Filtro Periodicidade com Caixas de Seleção */}
+            <div className="relative" ref={periodMenuRef}>
+                <button
+                    type="button"
+                    onClick={() => setIsPeriodMenuOpen(prev => !prev)}
+                    className={`w-full sm:w-auto flex items-center justify-between gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold uppercase transition-all ${
+                        !filterRecorrencias.includes('all') && filterRecorrencias.length > 0
+                            ? 'bg-slate-900 border-emerald-500 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.15)]'
+                            : 'bg-slate-900 border-slate-800 text-white hover:bg-slate-800'
+                    }`}
                 >
-                    <option value="all">Período</option>
-                    {uniqueRecorrencias.map(r => <option key={r} value={r}>{r}</option>)}
-                </select>
-                <Filter className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" size={12}/>
+                    <div className="flex items-center gap-1.5 truncate">
+                        <Calendar size={13} className={!filterRecorrencias.includes('all') && filterRecorrencias.length > 0 ? 'text-emerald-400' : 'text-slate-500'} />
+                        <span className="truncate">
+                            {filterRecorrencias.includes('all') || filterRecorrencias.length === 0
+                                ? 'Período'
+                                : filterRecorrencias.length === 1
+                                    ? filterRecorrencias[0]
+                                    : `Período (${filterRecorrencias.length})`}
+                        </span>
+                    </div>
+                    {!filterRecorrencias.includes('all') && filterRecorrencias.length > 0 && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0"></span>
+                    )}
+                    <ChevronDown size={14} className={`text-slate-500 shrink-0 transition-transform duration-200 ${isPeriodMenuOpen ? 'rotate-180 text-emerald-400' : ''}`}/>
+                </button>
+
+                {isPeriodMenuOpen && (
+                    <div className="absolute right-0 sm:left-0 top-full mt-2 w-72 bg-slate-900 border border-slate-700/80 rounded-2xl shadow-2xl p-3 z-50 backdrop-blur-xl">
+                        <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 px-1">
+                            <div className="flex items-center gap-1.5">
+                                <Calendar size={13} className="text-emerald-400" />
+                                <span className="text-[11px] font-black uppercase text-slate-300 tracking-wider">Filtrar Período</span>
+                            </div>
+                            {!filterRecorrencias.includes('all') && (
+                                <button
+                                    type="button"
+                                    onClick={selectAllRecorrencias}
+                                    className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 hover:underline uppercase transition-colors"
+                                >
+                                    Todos
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                            {/* Opção: Todos */}
+                            <label className="flex items-center gap-3 px-2.5 py-2 rounded-xl hover:bg-slate-800 cursor-pointer text-xs font-semibold text-slate-200 transition-colors group">
+                                <input
+                                    type="checkbox"
+                                    checked={filterRecorrencias.includes('all')}
+                                    onChange={selectAllRecorrencias}
+                                    className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-emerald-500 focus:ring-emerald-500/20 focus:ring-offset-0 cursor-pointer accent-emerald-500"
+                                />
+                                <span className="flex-1 group-hover:text-white">Todos os períodos</span>
+                                <span className="text-[10px] font-mono text-slate-500 bg-slate-800/80 px-1.5 py-0.5 rounded">
+                                    {topicPosts.length}
+                                </span>
+                            </label>
+
+                            <div className="border-t border-slate-800/80 my-1"></div>
+
+                            {/* Caixas de seleção para cada período */}
+                            {uniqueRecorrencias.length > 0 ? (
+                                uniqueRecorrencias.map(r => {
+                                    const isChecked = !filterRecorrencias.includes('all') && filterRecorrencias.includes(r);
+                                    const count = getRecorrenciaCount(r);
+                                    return (
+                                        <label
+                                            key={r}
+                                            className={`flex items-center gap-3 px-2.5 py-2 rounded-xl cursor-pointer text-xs font-medium transition-colors ${
+                                                isChecked
+                                                    ? 'bg-emerald-500/10 text-emerald-300 font-semibold'
+                                                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                                            }`}
+                                        >
+                                            <input
+                                                type="checkbox"
+                                                checked={isChecked}
+                                                onChange={() => toggleRecorrencia(r)}
+                                                className="w-4 h-4 rounded bg-slate-950 border-slate-700 text-emerald-500 focus:ring-emerald-500/20 focus:ring-offset-0 cursor-pointer accent-emerald-500"
+                                            />
+                                            <span className="flex-1 truncate">{r}</span>
+                                            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                                                isChecked ? 'bg-emerald-500/20 text-emerald-300' : 'text-slate-500 bg-slate-800/80'
+                                            }`}>
+                                                {count}
+                                            </span>
+                                        </label>
+                                    );
+                                })
+                            ) : (
+                                <div className="py-3 px-2 text-center text-xs text-slate-500 italic">
+                                    Nenhum período cadastrado
+                                </div>
+                            )}
+                        </div>
+
+                        {!filterRecorrencias.includes('all') && (
+                            <div className="pt-2 mt-2 border-t border-slate-800 flex justify-between items-center text-[10px] text-slate-400 px-1">
+                                <span>{filterRecorrencias.length} selecionado(s)</span>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPeriodMenuOpen(false)}
+                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-bold transition-all"
+                                >
+                                    Aplicar
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Ordenação */}
